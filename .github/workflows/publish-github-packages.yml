@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build and publish (e.g. v0.1.0). Defaults to latest tag."
+        description: "Tag to build and publish (e.g. v0.1.0). Leave blank to use latest tag."
         required: false
 
 permissions:
@@ -19,9 +19,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Resolve ref
+        id: ref
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          if [[ -n "$INPUT_TAG" ]]; then
+            # Normalise: prepend v if missing (e.g. "0.1.0" → "v0.1.0")
+            TAG="${INPUT_TAG#v}"
+            echo "value=v${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ steps.ref.outputs.value }}
 
       - uses: astral-sh/setup-uv@v7
         with:
