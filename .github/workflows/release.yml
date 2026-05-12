@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]*"]
+
+jobs:
+  release:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+
+    # Gate this job on the "pypi" environment so the PYPI_TOKEN secret is
+    # scoped and the release can require manual approval if configured.
+    environment: pypi
+
+    permissions:
+      contents: write  # create GitHub release and upload artifacts
+      id-token: write  # required for PyPI Trusted Publishers (OIDC)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Pre-publish checks
+        run: ./scripts/check.sh
+
+      - name: Build packages
+        run: ./scripts/build.sh --clean
+
+      # Publish via OIDC Trusted Publisher (no long-lived token stored in GitHub).
+      # One-time setup: go to https://pypi.org/manage/account/publishing/ and add:
+      #   owner=klauthed  repo=qx-py  workflow=release.yml  environment=pypi
+      #
+      # To use an API token instead, remove this step and add the one below it.
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+      # Alternative: token-based publish.
+      # Add PYPI_TOKEN to the "pypi" environment secrets and replace the
+      # "Publish to PyPI" step above with this one:
+      #
+      # - name: Publish to PyPI
+      #   env:
+      #     PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      #   run: uv publish --token "$PYPI_TOKEN" dist/*.whl dist/*.tar.gz
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" dist/*.whl dist/*.tar.gz \
+            --title "$TAG" \
+            --generate-notes
