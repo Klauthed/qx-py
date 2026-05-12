@@ -35,10 +35,15 @@ jobs:
 
       # Trusted Publisher registered at https://pypi.org/manage/account/publishing/
       # owner=klauthed  repo=qx-py  workflow=release.yml  environment=pypi
+      #
+      # FIRST-TIME ONLY: OIDC cannot create new projects. For the initial v0.1.0
+      # upload, set PYPI_API_TOKEN in the "pypi" GitHub environment. After packages
+      # are registered on PyPI, delete the secret and OIDC takes over automatically.
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Create GitHub release
         env:
