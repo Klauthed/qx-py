@@ -1,0 +1,78 @@
+name: Bug report
+description: Something is broken or behaving unexpectedly
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Fill in as much as you can — minimal reproducers make fixes much faster.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Affected package
+      options:
+        - qx-core
+        - qx-di
+        - qx-cqrs
+        - qx-db
+        - qx-http
+        - qx-observability
+        - qx-events
+        - qx-worker
+        - qx-cache
+        - qx-auth
+        - qx-grpc
+        - qx-search
+        - qx-testing
+        - qx-cli
+        - qx-devtools
+        - examples/identity-service
+        - multiple / unsure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: "e.g. 0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "e.g. 3.14.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A self-contained code snippet or steps that reproduces the issue.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Traceback / error output
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that might be relevant (environment, related issues, workaround found, etc.)

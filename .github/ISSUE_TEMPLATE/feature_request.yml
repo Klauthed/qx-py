@@ -1,0 +1,53 @@
+name: Feature request
+description: Propose a new feature or enhancement
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: dropdown
+    id: package
+    attributes:
+      label: Related package (if any)
+      options:
+        - qx-core
+        - qx-di
+        - qx-cqrs
+        - qx-db
+        - qx-http
+        - qx-observability
+        - qx-events
+        - qx-worker
+        - qx-cache
+        - qx-auth
+        - qx-grpc
+        - qx-search
+        - qx-testing
+        - qx-cli
+        - qx-devtools
+        - new package
+        - none / cross-cutting
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What are you trying to do that the framework doesn't support today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the API or behaviour you'd like. Code sketches welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you looked at and why you prefer your proposal.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context

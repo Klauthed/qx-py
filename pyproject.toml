@@ -3,7 +3,7 @@ name = "qx-python-workspace"
 version = "0.1.0"
 description = "Qx Python backend framework ecosystem"
 requires-python = ">=3.14"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [
     "identity-service",

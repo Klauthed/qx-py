@@ -1,0 +1,16 @@
+# Default: all changes require review from maintainers
+* @omerekmen
+
+# Core primitives — extra scrutiny
+packages/qx-core/ @omerekmen
+packages/qx-di/   @omerekmen
+packages/qx-cqrs/ @omerekmen
+packages/qx-db/   @omerekmen
+
+# Security-sensitive packages
+packages/qx-auth/ @omerekmen
+
+# CI / release configuration
+.github/           @omerekmen
+scripts/           @omerekmen
+pyproject.toml     @omerekmen

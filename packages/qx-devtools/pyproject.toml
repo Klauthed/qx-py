@@ -3,7 +3,7 @@ name = "qx-devtools"
 version = "0.1.0"
 description = "Qx devtools: ruff/mypy/pre-commit presets, code quality helpers"
 requires-python = ">=3.14"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = []
 

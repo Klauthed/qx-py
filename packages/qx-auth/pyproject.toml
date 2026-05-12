@@ -3,7 +3,7 @@ name = "qx-auth"
 version = "0.1.0"
 description = "Qx auth: JWT validation, OIDC client, RBAC primitives, policy engine, rate limiting"
 requires-python = ">=3.14"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [
     "qx-core",
