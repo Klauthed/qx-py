@@ -211,14 +211,14 @@ class WorkerRuntime:
         ):
             if _HAS_PROMETHEUS:
                 timer = _message_duration.labels(event_name=event_name).time()
-                timer.__enter__()
+                timer.__enter__()  # type: ignore[no-untyped-call]
 
             try:
                 async with self._container.scope("worker") as scope:
                     await self._mediator.consume_integration(event, scope=scope)
                 await msg.ack()
                 if _HAS_PROMETHEUS:
-                    timer.__exit__(None, None, None)
+                    timer.__exit__(None, None, None)  # type: ignore[no-untyped-call]
                 return "ack"
 
             except PermanentWorkerError as exc:
@@ -230,7 +230,7 @@ class WorkerRuntime:
                 )
                 await msg.ack()
                 if _HAS_PROMETHEUS:
-                    timer.__exit__(None, None, None)
+                    timer.__exit__(None, None, None)  # type: ignore[no-untyped-call]
                 return "drop"
 
             except Exception as exc:
@@ -242,5 +242,5 @@ class WorkerRuntime:
                 )
                 await msg.nak()
                 if _HAS_PROMETHEUS:
-                    timer.__exit__(type(exc), exc, exc.__traceback__)
+                    timer.__exit__(type(exc), exc, exc.__traceback__)  # type: ignore[no-untyped-call]
                 return "nak"

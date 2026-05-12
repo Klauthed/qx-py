@@ -1,0 +1,121 @@
+{
+  "name": "qx-python",
+  "displayName": "qx-python",
+  "description": "Scaffolding, code generation, and dev orchestration for the qx Python framework.",
+  "version": "0.1.0",
+  "publisher": "klauthed",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/klauthed/qx-py.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other", "Snippets"],
+  "keywords": ["qx", "python", "fastapi", "cqrs", "scaffolding"],
+  "icon": "assets/icon.png",
+  "activationEvents": ["workspaceContains:**/pyproject.toml"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "qx.newService",
+        "title": "New Service",
+        "category": "qx"
+      },
+      {
+        "command": "qx.generateAggregate",
+        "title": "Generate: Aggregate",
+        "category": "qx"
+      },
+      {
+        "command": "qx.generateCommand",
+        "title": "Generate: Command",
+        "category": "qx"
+      },
+      {
+        "command": "qx.generateQuery",
+        "title": "Generate: Query",
+        "category": "qx"
+      },
+      {
+        "command": "qx.generateEvent",
+        "title": "Generate: Event",
+        "category": "qx"
+      },
+      {
+        "command": "qx.generateEndpoint",
+        "title": "Generate: Endpoint",
+        "category": "qx"
+      },
+      {
+        "command": "qx.devUp",
+        "title": "Dev: Start Stack",
+        "category": "qx"
+      },
+      {
+        "command": "qx.devDown",
+        "title": "Dev: Stop Stack",
+        "category": "qx"
+      },
+      {
+        "command": "qx.devLogs",
+        "title": "Dev: Tail Logs",
+        "category": "qx"
+      },
+      {
+        "command": "qx.doctor",
+        "title": "Doctor",
+        "category": "qx"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "qx.newService" },
+        { "command": "qx.generateAggregate" },
+        { "command": "qx.generateCommand" },
+        { "command": "qx.generateQuery" },
+        { "command": "qx.generateEvent" },
+        { "command": "qx.generateEndpoint" },
+        { "command": "qx.devUp" },
+        { "command": "qx.devDown" },
+        { "command": "qx.devLogs" },
+        { "command": "qx.doctor" }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "qx.explorer",
+          "group": "qx"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "qx.explorer",
+        "label": "qx"
+      }
+    ],
+    "configuration": {
+      "title": "qx",
+      "properties": {
+        "qx.cliExecutable": {
+          "type": "string",
+          "default": "qx",
+          "description": "Path to the qx CLI executable. Defaults to 'qx' on PATH. Use 'uv run qx' inside a uv workspace."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "@vscode/vsce": "^2.26.0"
+  }
+}
