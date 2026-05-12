@@ -33,24 +33,21 @@ jobs:
       - name: Build packages
         run: ./scripts/build.sh --clean
 
-      # Publish via OIDC Trusted Publisher (no long-lived token stored in GitHub).
-      # One-time setup: go to https://pypi.org/manage/account/publishing/ and add:
-      #   owner=klauthed  repo=qx-py  workflow=release.yml  environment=pypi
-      #
-      # To use an API token instead, remove this step and add the one below it.
+      # Stage to TestPyPI first. Trusted Publisher must be registered at
+      # https://test.pypi.org/manage/account/publishing/ with the same
+      # owner/repo/workflow/environment values as the PyPI publisher.
+      - name: Publish to TestPyPI (staging)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          repository-url: https://test.pypi.org/legacy/
+
+      # Publish to real PyPI only after TestPyPI succeeds.
+      # Trusted Publisher registered at https://pypi.org/manage/account/publishing/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
-
-      # Alternative: token-based publish.
-      # Add PYPI_TOKEN to the "pypi" environment secrets and replace the
-      # "Publish to PyPI" step above with this one:
-      #
-      # - name: Publish to PyPI
-      #   env:
-      #     PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-      #   run: uv publish --token "$PYPI_TOKEN" dist/*.whl dist/*.tar.gz
 
       - name: Create GitHub release
         env:
