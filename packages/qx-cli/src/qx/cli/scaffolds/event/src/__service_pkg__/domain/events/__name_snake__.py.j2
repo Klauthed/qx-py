@@ -1,0 +1,18 @@
+"""{{ name_pascal }} integration event."""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+from qx.core import IntegrationEvent
+
+
+class {{ name_pascal }}(IntegrationEvent):
+    """TODO: document the meaning + downstream contract for this event."""
+
+    event_name: ClassVar[str] = "{{ service_pkg }}.{{ name_snake }}"
+    event_version: ClassVar[int] = 1
+
+    # Payload fields. Keep this minimal — events are a contract, breaking
+    # consumers is painful. Add a new event version rather than rename fields.
+    # example_id: UUID

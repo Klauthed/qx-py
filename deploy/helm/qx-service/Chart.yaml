@@ -1,0 +1,14 @@
+apiVersion: v2
+name: qx-service
+description: Helm chart for a Qx service (API + worker + outbox relay).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+keywords:
+  - qx
+  - cqrs
+  - identity
+
+annotations:
+  category: framework

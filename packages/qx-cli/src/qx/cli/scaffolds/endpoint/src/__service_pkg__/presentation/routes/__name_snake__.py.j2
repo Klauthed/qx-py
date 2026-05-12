@@ -1,0 +1,24 @@
+"""HTTP endpoint dispatching {{ name_pascal }}."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+from qx.cqrs import Mediator
+from qx.http import Inject, envelope_success, unwrap
+
+# Adjust the import path to match where the command/query lives in your project.
+# from {{ service_pkg }}.application.commands.{{ name_snake }} import {{ name_pascal }}Command
+
+router = APIRouter()
+
+
+@router.{{ endpoint_method_lower }}("{{ endpoint_path }}")
+async def {{ name_snake }}_endpoint(
+    # cmd: {{ name_pascal }}Command,
+    mediator: Mediator = Inject(Mediator),
+):
+    """{{ endpoint_method }} {{ endpoint_path }} → dispatches {{ name_pascal }}."""
+    # result = await mediator.send(cmd)
+    # return envelope_success(unwrap(result))
+    return envelope_success({"todo": "wire {{ name_pascal }}Command"})

@@ -1,0 +1,22 @@
+"""Domain layer.
+
+Aggregates, entities, value objects, and domain events live here. This layer
+has no dependencies on infrastructure (no SQLAlchemy, no HTTP, no NATS).
+
+When you add an aggregate via ``qx generate aggregate Foo``, it
+appears under ``aggregates/``. Register your integration event types in
+``register_events`` so the worker knows how to decode them off the broker.
+"""
+
+from __future__ import annotations
+
+from qx.events import EventRegistry
+
+
+def register_events(registry: EventRegistry) -> None:
+    """Register every IntegrationEvent class this service publishes or consumes.
+
+    The registry is used by the worker to deserialize incoming NATS messages.
+    """
+    # registry.register(SomeIntegrationEvent)
+    pass

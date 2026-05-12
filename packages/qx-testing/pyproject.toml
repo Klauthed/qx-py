@@ -1,0 +1,27 @@
+[project]
+name = "qx-testing"
+version = "0.1.0"
+description = "Qx testing helpers: testcontainers, fixtures, mediator/repository doubles, outbox assertions"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Qx Engineering" }]
+dependencies = [
+    "qx-core",
+    "qx-di",
+    "qx-cqrs",
+    "qx-db",
+    "qx-cache",
+    "qx-events",
+    "qx-http",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "testcontainers[postgresql,redis]>=4.8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qx"]

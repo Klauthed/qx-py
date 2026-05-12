@@ -1,0 +1,117 @@
+## Helm values for a Qx service.
+##
+## Override per-service. Most services only need to change `service.name`,
+## `image`, and the secret backend mapping.
+
+service:
+  name: identity-service
+  # Python import path of the service package — used by the worker / relay
+  # commands. Typically dash-to-underscore of `service.name`.
+  packageName: identity_service
+
+image:
+  repository: ghcr.io/qx/identity-service
+  tag: ""           # defaults to .Chart.appVersion
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# ─── API deployment ──────────────────────────────────────────
+
+api:
+  enabled: true
+  replicas: 3
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# ─── Worker deployment ───────────────────────────────────────
+
+worker:
+  enabled: true
+  replicas: 2
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+
+# ─── Outbox relay (singleton) ────────────────────────────────
+
+outboxRelay:
+  enabled: true
+  # Don't change this unless you have a very good reason.
+  resources:
+    requests: { cpu: "50m", memory: "128Mi" }
+    limits:   { cpu: "200m", memory: "256Mi" }
+
+# ─── Service ─────────────────────────────────────────────────
+
+serviceObject:
+  type: ClusterIP
+  port: 80
+
+# ─── Migrations ──────────────────────────────────────────────
+
+migrate:
+  enabled: true
+  # Set false if your service uses a managed migration pipeline (e.g.,
+  # GitHub Actions running alembic before each deploy).
+  resources:
+    requests: { cpu: "50m", memory: "128Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+
+# ─── Config & secrets ────────────────────────────────────────
+
+config:
+  # Non-secret env. Merged into the ConfigMap.
+  QX_ENVIRONMENT: production
+  QX_LOGGING__JSON_OUTPUT: "true"
+  QX_LOGGING__LEVEL: INFO
+
+externalSecrets:
+  enabled: true
+  # ClusterSecretStore name (External Secrets Operator).
+  secretStoreRef: cluster-secret-store
+  # Each entry becomes one key in the synced Secret.
+  data:
+    - secretKey: QX_DB__URL
+      remoteRef:
+        key: identity-service/database
+        property: url
+    - secretKey: QX_CACHE__URL
+      remoteRef:
+        key: identity-service/cache
+        property: url
+    - secretKey: QX_NATS__SERVERS
+      remoteRef:
+        key: identity-service/nats
+        property: servers
+
+# ─── Monitoring (Prometheus Operator) ────────────────────────
+
+serviceMonitor:
+  enabled: true
+  # Match your Prometheus Operator releaseLabel.
+  releaseLabel: prometheus
+  interval: 15s
+  scrapeTimeout: 10s
+
+# ─── Pod security ────────────────────────────────────────────
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]

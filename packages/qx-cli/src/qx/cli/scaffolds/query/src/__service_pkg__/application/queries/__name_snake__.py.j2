@@ -1,0 +1,21 @@
+"""{{ name_pascal }} query + handler."""
+
+from __future__ import annotations
+
+from qx.core import Result
+from qx.cqrs import Query, query_handler
+
+
+class {{ name_pascal }}Query(Query[None]):
+    """TODO: describe what {{ name_pascal }} returns."""
+
+    # id: UUID
+
+
+@query_handler({{ name_pascal }}Query)
+class {{ name_pascal }}Handler:
+    """Handler for {{ name_pascal }}Query."""
+
+    async def handle(self, query: {{ name_pascal }}Query) -> Result[None]:
+        # TODO: read state, return DTO
+        return Result.success(None)

@@ -1,0 +1,48 @@
+# Outbox relay: drains the per-service outbox table to NATS.
+# Run EXACTLY ONE replica per service. The DistributedLock will enforce
+# leader semantics if you accidentally scale up, but the recommended
+# topology is replicas=1 with Recreate strategy.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${SERVICE_NAME}-outbox-relay
+  labels:
+    app.kubernetes.io/name: ${SERVICE_NAME}
+    app.kubernetes.io/component: outbox-relay
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ${SERVICE_NAME}
+      app.kubernetes.io/component: outbox-relay
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ${SERVICE_NAME}
+        app.kubernetes.io/component: outbox-relay
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: outbox-relay
+          image: ${IMAGE}
+          command: ["python", "-m", "${SERVICE_PACKAGE}.outbox_relay"]
+          envFrom:
+            - configMapRef: { name: ${SERVICE_NAME}-config }
+            - secretRef: { name: ${SERVICE_NAME}-secrets }
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits:   { cpu: "200m", memory: "256Mi" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      terminationGracePeriodSeconds: 30

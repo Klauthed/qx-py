@@ -1,0 +1,22 @@
+"""Application layer.
+
+Command/query handlers, application services, and DTOs.
+
+When you add a command via ``qx generate command Foo``, the handler
+is registered automatically by walking the ``application`` module here.
+"""
+
+from __future__ import annotations
+
+from qx.cqrs import Mediator
+from qx.di import Container
+
+
+def register_handlers(mediator: Mediator, _container: Container) -> int:
+    """Discover and register every CQRS handler in this package.
+
+    Returns the number of handlers registered.
+    """
+    from {{ service_pkg }} import application as app_pkg
+
+    return mediator.register_decorated(app_pkg)

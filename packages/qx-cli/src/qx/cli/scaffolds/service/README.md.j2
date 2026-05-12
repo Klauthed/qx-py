@@ -1,0 +1,59 @@
+# {{ service_name }}
+
+A [Qx](https://qx.dev) service.
+
+## Quickstart
+
+```bash
+uv sync
+docker compose -f ../deploy/docker-compose.yaml up -d  # local Postgres + Redis + NATS
+uv run alembic upgrade head
+uv run uvicorn {{ service_pkg }}.main:app --reload
+```
+
+The service listens on `http://localhost:8000`. Health checks live at
+`/healthz` and `/readyz`; metrics at `/metrics`; OpenAPI docs at `/docs`.
+
+## Project layout
+
+```
+src/{{ service_pkg }}/
+  domain/         # aggregates, entities, value objects, domain events
+  application/    # command/query handlers, DTOs, application services
+  infrastructure/ # SQLAlchemy mappings, repositories, NATS adapters
+  presentation/   # FastAPI routers, gRPC servicers
+  main.py         # composition root
+```
+
+## Generating code
+
+```bash
+qx generate aggregate Invoice
+qx generate command CreateInvoice --aggregate Invoice
+qx generate query GetInvoice
+qx generate endpoint --method POST --handler CreateInvoice /invoices
+qx generate event InvoiceCreated
+```
+
+## Testing
+
+```bash
+uv run pytest
+```
+
+Integration tests use testcontainers — they require Docker running locally.
+
+## Configuration
+
+All settings come from environment variables with the prefix `QX_`.
+The most common:
+
+| Env var | Purpose |
+|---|---|
+| `QX_DB__URL` | Postgres connection URL |
+| `QX_CACHE__URL` | Redis URL |
+| `QX_NATS__SERVERS` | NATS servers (JSON array) |
+| `QX_LOGGING__JSON_OUTPUT` | `true` in prod, `false` for human-readable |
+| `QX_LOGGING__LEVEL` | `INFO`/`DEBUG`/etc. |
+
+See the framework docs for the full list.

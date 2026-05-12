@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${SERVICE_NAME}
+  labels:
+    app.kubernetes.io/name: ${SERVICE_NAME}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ${SERVICE_NAME}
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ${SERVICE_NAME}-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ${SERVICE_NAME}-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+      selectPolicy: Max
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${SERVICE_NAME}-config
+data:
+  QX_APP__NAME: ${SERVICE_NAME}
+  QX_ENVIRONMENT: production
+  QX_LOGGING__JSON_OUTPUT: "true"
+  QX_LOGGING__LEVEL: "INFO"
+  QX_DB__POOL_SIZE: "10"
+  QX_DB__POOL_RECYCLE_SECONDS: "1800"
+  # Secrets (URLs, passwords) come from the secret via ExternalSecret below.
+---
+# Requires External Secrets Operator installed in the cluster.
+# Swap to your secret backend (AWS Secrets Manager, Vault, GCP SM, etc.).
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: ${SERVICE_NAME}-secrets
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: ${SERVICE_NAME}-secrets
+    creationPolicy: Owner
+  data:
+    - secretKey: QX_DB__URL
+      remoteRef:
+        key: ${SERVICE_NAME}/database
+        property: url
+    - secretKey: QX_CACHE__URL
+      remoteRef:
+        key: ${SERVICE_NAME}/cache
+        property: url
+    - secretKey: QX_NATS__SERVERS
+      remoteRef:
+        key: ${SERVICE_NAME}/nats
+        property: servers
+---
+# Prometheus Operator ServiceMonitor — scraped automatically.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ${SERVICE_NAME}
+  labels:
+    app.kubernetes.io/name: ${SERVICE_NAME}
+    release: prometheus  # match your Prometheus Operator releaseLabel
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ${SERVICE_NAME}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+---
+# Pre-deploy migration job. Helm wires this as a pre-install/pre-upgrade
+# hook so it runs once per revision, before the rollout.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${SERVICE_NAME}-migrate
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: migrate
+          image: ${IMAGE}
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef: { name: ${SERVICE_NAME}-config }
+            - secretRef: { name: ${SERVICE_NAME}-secrets }
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }

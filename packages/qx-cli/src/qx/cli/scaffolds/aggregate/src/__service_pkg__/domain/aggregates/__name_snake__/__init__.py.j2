@@ -1,0 +1,60 @@
+"""{{ name_pascal }} aggregate.
+
+Domain object. Encapsulates the invariants and emits domain events when
+state changes. Knows nothing about HOW it's stored.
+"""
+
+from __future__ import annotations
+
+from dataclasses import field
+from typing import ClassVar
+from uuid import UUID, uuid4
+
+from qx.core import (
+    AggregateRoot,
+    DomainEvent,
+    Identifier,
+    IntegrationEvent,
+    aggregate,
+)
+
+
+# ---- Domain events ----
+
+
+class {{ name_pascal }}Created(DomainEvent):
+    """In-process event recorded when a {{ name_pascal }} is created."""
+
+    event_name: ClassVar[str] = "{{ service_pkg }}.{{ name_snake }}.created"
+
+    {{ name_snake }}_id: UUID
+
+
+class {{ name_pascal }}CreatedIntegrationEvent(IntegrationEvent):
+    """Cross-process event published via the outbox."""
+
+    event_name: ClassVar[str] = "{{ service_pkg }}.{{ name_snake }}.created"
+    event_version: ClassVar[int] = 1
+
+    {{ name_snake }}_id: UUID
+
+
+# ---- Aggregate ----
+
+
+@aggregate
+class {{ name_pascal }}(AggregateRoot[Identifier]):
+    """The {{ name_pascal }} aggregate root."""
+
+    # Add your fields here. Example:
+    # name: str = ""
+
+    @classmethod
+    def create(cls) -> "{{ name_pascal }}":
+        """Factory: construct a new {{ name_pascal }} and record creation events."""
+        new = cls(id=Identifier(value=uuid4()))
+        new.record_event({{ name_pascal }}Created({{ name_snake }}_id=new.id.value))
+        new.record_event(
+            {{ name_pascal }}CreatedIntegrationEvent({{ name_snake }}_id=new.id.value)
+        )
+        return new

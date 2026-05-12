@@ -1,0 +1,22 @@
+"""Infrastructure layer.
+
+Concrete adapters: SQLAlchemy mappings, repositories, NATS adapters,
+external HTTP clients. This layer depends on everything; domain and
+application depend on nothing here directly — only on the interfaces
+they declare.
+"""
+
+from __future__ import annotations
+
+from sqlalchemy import MetaData
+
+from qx.db import make_metadata
+from qx.db.outbox import include_outbox_table
+
+# Single metadata for the service. Add Table() definitions in the same
+# module that defines the aggregate (under domain/aggregates/<name>/mapping.py)
+# and they will all share this MetaData.
+metadata: MetaData = make_metadata()
+
+# The outbox table is always present; aggregates plug in alongside.
+include_outbox_table(metadata)

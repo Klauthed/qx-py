@@ -1,0 +1,131 @@
+{{- if .Values.api.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "qx.fullname" . }}
+  labels:
+    {{- include "qx.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.serviceObject.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "qx.name" . }}
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: {{ .Values.serviceObject.port }}
+      targetPort: http
+      protocol: TCP
+{{- end }}
+---
+{{- if and .Values.api.enabled .Values.api.hpa.enabled -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "qx.fullname" . }}-api
+  labels:
+    {{- include "qx.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "qx.fullname" . }}-api
+  minReplicas: {{ .Values.api.hpa.minReplicas }}
+  maxReplicas: {{ .Values.api.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.api.hpa.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.api.hpa.targetMemoryUtilizationPercentage }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "qx.fullname" . }}-config
+  labels:
+    {{- include "qx.labels" . | nindent 4 }}
+data:
+  QX_APP__NAME: {{ include "qx.name" . | quote }}
+{{- range $k, $v := .Values.config }}
+  {{ $k }}: {{ $v | quote }}
+{{- end }}
+---
+{{- if .Values.externalSecrets.enabled -}}
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: {{ include "qx.fullname" . }}-secrets
+  labels:
+    {{- include "qx.labels" . | nindent 4 }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: {{ .Values.externalSecrets.secretStoreRef }}
+    kind: ClusterSecretStore
+  target:
+    name: {{ include "qx.fullname" . }}-secrets
+    creationPolicy: Owner
+  data:
+    {{- toYaml .Values.externalSecrets.data | nindent 4 }}
+{{- end }}
+---
+{{- if .Values.serviceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "qx.fullname" . }}
+  labels:
+    {{- include "qx.labels" . | nindent 4 }}
+    release: {{ .Values.serviceMonitor.releaseLabel }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "qx.name" . }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+{{- end }}
+---
+{{- if .Values.migrate.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "qx.fullname" . }}-migrate
+  labels:
+    {{- include "qx.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "qx.image" . }}
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "qx.fullname" . }}-config
+            {{- if .Values.externalSecrets.enabled }}
+            - secretRef:
+                name: {{ include "qx.fullname" . }}-secrets
+            {{- end }}
+          resources:
+            {{- toYaml .Values.migrate.resources | nindent 12 }}
+{{- end }}
