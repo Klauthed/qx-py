@@ -53,7 +53,12 @@ jobs:
             exit 1
           fi
 
+      # TestPyPI has stricter name-similarity rules than production PyPI.
+      # Some packages may be blocked by a name conflict that doesn't exist on PyPI.
+      # continue-on-error lets the workflow complete so you can inspect the logs
+      # and verify at least the majority of packages uploaded successfully.
       - name: Publish to TestPyPI
+        continue-on-error: true
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
