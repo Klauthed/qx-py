@@ -6,7 +6,6 @@ from typing import ClassVar
 from uuid import UUID, uuid4
 
 import pytest
-
 from qx.core import AggregateRoot, DomainEvent, ValueObject, aggregate
 
 
@@ -69,7 +68,7 @@ def test_value_objects_are_equal_by_attributes() -> None:
 
 def test_value_objects_are_frozen() -> None:
     e = _Email(value="x@x")
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         e.value = "y@y"  # type: ignore[misc]
 
 
@@ -81,5 +80,5 @@ def test_value_object_with_changes_returns_copy() -> None:
 
 
 def test_value_object_rejects_extra_fields() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         _Email(value="x@x", extra="nope")  # type: ignore[call-arg]

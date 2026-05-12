@@ -25,12 +25,13 @@ Usage::
 from __future__ import annotations
 
 import json
-from typing import Any
-
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
+from typing import TYPE_CHECKING, Any
 
 from qx.db.outbox import OUTBOX_TABLE_NAME
+from sqlalchemy import text
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncEngine
 
 __all__ = ["OutboxAssert"]
 
@@ -60,9 +61,7 @@ class OutboxAssert:
         """Assert at least one event matches; return the first match."""
         rows = await self.list(event_name=event_name)
         if not rows:
-            raise AssertionError(
-                f"expected at least one outbox row for {event_name!r}; found none"
-            )
+            raise AssertionError(f"expected at least one outbox row for {event_name!r}; found none")
         if where is None:
             return rows[0]
         for row in rows:
@@ -80,9 +79,7 @@ class OutboxAssert:
     async def assert_no_event(self, event_name: str) -> None:
         rows = await self.list(event_name=event_name)
         if rows:
-            raise AssertionError(
-                f"expected no outbox rows for {event_name!r}; found {len(rows)}"
-            )
+            raise AssertionError(f"expected no outbox rows for {event_name!r}; found {len(rows)}")
 
     async def clear(self) -> None:
         async with self._engine.begin() as conn:

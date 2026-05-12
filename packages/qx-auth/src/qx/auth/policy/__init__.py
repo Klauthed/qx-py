@@ -15,24 +15,26 @@ developers reading auth code.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from qx.auth.rbac import Permission
 from qx.core import ForbiddenError, Result
 
-from qx.auth.jwt import Principal
-from qx.auth.rbac import Permission
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from qx.auth.jwt import Principal
 
 __all__ = [
     "Decision",
-    "PolicyResult",
     "Policy",
-    "require_permission",
-    "require_any_permission",
-    "require_all_permissions",
     "PolicyEvaluator",
+    "PolicyResult",
+    "require_all_permissions",
+    "require_any_permission",
+    "require_permission",
 ]
 
 
@@ -63,9 +65,7 @@ def require_permission(permission: str) -> Policy:
     async def _rule(p: Principal, _resource: Any) -> PolicyResult:
         if perm.matches(p.permissions):
             return PolicyResult(Decision.ALLOW)
-        return PolicyResult(
-            Decision.DENY, reason=f"missing required permission: {permission}"
-        )
+        return PolicyResult(Decision.DENY, reason=f"missing required permission: {permission}")
 
     return Policy(name=f"require_permission({permission})", rule=_rule)
 

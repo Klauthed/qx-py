@@ -18,17 +18,18 @@ HTTP envelope's ``error.code`` field carries. Consistent across transports.
 
 from __future__ import annotations
 
-import json
-from typing import Any
+from typing import TYPE_CHECKING
 
-import grpc
-from google.protobuf import any_pb2  # type: ignore[import-not-found]
-from google.rpc import code_pb2, error_details_pb2, status_pb2  # type: ignore[import-not-found]
-from grpc_status import rpc_status  # type: ignore[import-not-found]
+from google.protobuf import any_pb2
+from google.rpc import code_pb2, error_details_pb2, status_pb2
+from grpc_status import rpc_status
 
-from qx.core import Error
+if TYPE_CHECKING:
+    from qx.core import Error
 
-__all__ = ["status_from_error", "abort_with_error"]
+    import grpc
+
+__all__ = ["abort_with_error", "status_from_error"]
 
 
 def status_from_error(error: Error) -> status_pb2.Status:
@@ -84,4 +85,6 @@ def abort_with_error(context: grpc.aio.ServicerContext, error: Error) -> None:
     The aio servicer expects ``await context.abort_with_status(...)`` for full
     detail support. ``ServicerContext.abort`` would only carry code+message.
     """
-    raise rpc_status.to_status(status_from_error(error))  # synchronous: turns into trailing metadata
+    raise rpc_status.to_status(
+        status_from_error(error)
+    )  # synchronous: turns into trailing metadata

@@ -19,9 +19,8 @@ during development.
 from __future__ import annotations
 
 import typer
-from rich.console import Console
-
 from qx.cli.commands import dev, generate, new
+from rich.console import Console
 
 console = Console()
 
@@ -44,7 +43,7 @@ app.add_typer(dev.app, name="dev", help="Local development orchestration.")
 @app.command()
 def version() -> None:
     """Print the framework version."""
-    from qx.core import __version__ as core_version
+    from qx.core import __version__ as core_version  # noqa: PLC0415
 
     console.print(f"[bold]qx-python[/bold] [cyan]{core_version}[/cyan]")
 

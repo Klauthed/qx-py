@@ -23,17 +23,16 @@ import time
 from typing import Any
 from uuid import UUID, uuid4
 
+from qx.core import ErrorException, RequestContext, request_scope
+from qx.grpc.errors import status_from_error
+
 import grpc
 from grpc.aio import ServerInterceptor
 
-from qx.core import Error, RequestContext, request_scope
-
-from qx.grpc.errors import status_from_error
-
 __all__ = [
-    "RequestContextInterceptor",
-    "MetricsInterceptor",
     "ExceptionInterceptor",
+    "MetricsInterceptor",
+    "RequestContextInterceptor",
 ]
 
 
@@ -56,7 +55,7 @@ def _extract(metadata: tuple[tuple[str, str], ...], key: str) -> str | None:
     return None
 
 
-class RequestContextInterceptor(ServerInterceptor):
+class RequestContextInterceptor(ServerInterceptor):  # type: ignore[misc]
     """Open a RequestContext spanning every incoming RPC."""
 
     async def intercept_service(
@@ -71,9 +70,7 @@ class RequestContextInterceptor(ServerInterceptor):
 
         async def wrapped(request: Any, context: grpc.aio.ServicerContext) -> Any:
             metadata = context.invocation_metadata() or ()
-            correlation_id = (
-                _try_uuid(_extract(metadata, "qx-correlation-id")) or uuid4()
-            )
+            correlation_id = _try_uuid(_extract(metadata, "qx-correlation-id")) or uuid4()
             request_id = _try_uuid(_extract(metadata, "qx-request-id")) or uuid4()
             tenant_id = _try_uuid(_extract(metadata, "qx-tenant-id"))
 
@@ -94,14 +91,14 @@ class RequestContextInterceptor(ServerInterceptor):
                 )
                 return await original(request, context)
 
-        return grpc.aio.unary_unary_rpc_method_handler(  # type: ignore[attr-defined]
+        return grpc.aio.unary_unary_rpc_method_handler(
             wrapped,
             request_deserializer=handler.request_deserializer,
             response_serializer=handler.response_serializer,
         )
 
 
-class ExceptionInterceptor(ServerInterceptor):
+class ExceptionInterceptor(ServerInterceptor):  # type: ignore[misc]
     """Translate Error exceptions to gRPC status; suppress unknowns."""
 
     async def intercept_service(
@@ -117,16 +114,16 @@ class ExceptionInterceptor(ServerInterceptor):
         async def wrapped(request: Any, context: grpc.aio.ServicerContext) -> Any:
             try:
                 return await original(request, context)
-            except Error as err:
-                status = status_from_error(err)
-                await context.abort_with_status(_StatusProxy(status))  # type: ignore[arg-type]
+            except ErrorException as exc:
+                status = status_from_error(exc.error)
+                await context.abort_with_status(_StatusProxy(status))
                 return None  # unreachable
-            except Exception as exc:  # noqa: BLE001
+            except Exception:
                 _log.exception("unhandled gRPC exception")
                 await context.abort(grpc.StatusCode.UNKNOWN, "internal error")
                 return None
 
-        return grpc.aio.unary_unary_rpc_method_handler(  # type: ignore[attr-defined]
+        return grpc.aio.unary_unary_rpc_method_handler(
             wrapped,
             request_deserializer=handler.request_deserializer,
             response_serializer=handler.response_serializer,
@@ -146,7 +143,7 @@ class _StatusProxy:
         self.trailing_metadata = ()
 
 
-class MetricsInterceptor(ServerInterceptor):
+class MetricsInterceptor(ServerInterceptor):  # type: ignore[misc]
     """Record framework metrics per RPC."""
 
     def __init__(self, metrics: Any) -> None:
@@ -178,16 +175,12 @@ class MetricsInterceptor(ServerInterceptor):
                 # Reuse http_request_* counters for unified dashboards; method
                 # holds the gRPC fully-qualified method name (slash-prefixed).
                 try:
-                    m.http_request_total.labels(
-                        method="GRPC", route=method, status=outcome
-                    ).inc()
-                    m.http_request_duration.labels(
-                        method="GRPC", route=method
-                    ).observe(duration)
-                except Exception:  # noqa: BLE001
+                    m.http_request_total.labels(method="GRPC", route=method, status=outcome).inc()
+                    m.http_request_duration.labels(method="GRPC", route=method).observe(duration)
+                except Exception:
                     pass
 
-        return grpc.aio.unary_unary_rpc_method_handler(  # type: ignore[attr-defined]
+        return grpc.aio.unary_unary_rpc_method_handler(
             wrapped,
             request_deserializer=handler.request_deserializer,
             response_serializer=handler.response_serializer,

@@ -19,7 +19,6 @@ from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
-
 from qx.core.utils.time import utcnow
 
 __all__ = ["AuditAction", "AuditEntry"]

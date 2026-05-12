@@ -25,7 +25,7 @@ from typing import ClassVar, Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["Environment", "QxSettings", "AppSection", "LoggingSection"]
+__all__ = ["AppSection", "Environment", "LoggingSection", "QxSettings"]
 
 Environment = Literal["local", "dev", "staging", "prod", "test"]
 

@@ -23,9 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
-from typing import Any
-
-import redis.asyncio as aioredis
+from typing import TYPE_CHECKING, Any
 
 from qx.core import (
     ConflictError,
@@ -34,7 +32,10 @@ from qx.core import (
     Result,
 )
 
-__all__ = ["IdempotencyStore", "IdempotencyConflictError"]
+if TYPE_CHECKING:
+    import redis.asyncio as aioredis
+
+__all__ = ["IdempotencyConflictError", "IdempotencyStore"]
 
 
 class IdempotencyConflictError(PreconditionFailedError):
@@ -108,7 +109,7 @@ class IdempotencyStore:
         return 'in_progress'
         """
         try:
-            result = await self._r.eval(  # type: ignore[no-untyped-call]
+            result = await self._r.eval(  # type: ignore[misc]
                 script,
                 1,
                 key,
@@ -116,7 +117,7 @@ class IdempotencyStore:
                 datetime.now(UTC).isoformat(),
                 str(ttl),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return Result.failure(
                 InfrastructureError(
                     code="idempotency.store_unavailable",
@@ -125,9 +126,9 @@ class IdempotencyStore:
                 )
             )
 
-        if result == b"claim" or result == "claim":
+        if result in {b"claim", "claim"}:
             return Result.success(None)
-        if result == b"conflict" or result == "conflict":
+        if result in {b"conflict", "conflict"}:
             return Result.failure(
                 IdempotencyConflictError(
                     code="idempotency.payload_mismatch",
@@ -137,13 +138,12 @@ class IdempotencyStore:
                     ),
                 )
             )
-        if result == b"in_progress" or result == "in_progress":
+        if result in {b"in_progress", "in_progress"}:
             return Result.failure(
                 ConflictError(
                     code="idempotency.in_progress",
                     message=(
-                        "A request with this Idempotency-Key is already in progress. "
-                        "Retry shortly."
+                        "A request with this Idempotency-Key is already in progress. Retry shortly."
                     ),
                 )
             )
@@ -162,7 +162,7 @@ class IdempotencyStore:
         """Persist the response and mark the slot as completed."""
         key = self._key(tenant, idem_key)
         ttl = ttl_seconds or self._ttl
-        await self._r.hset(  # type: ignore[no-untyped-call]
+        await self._r.hset(  # type: ignore[misc]
             key,
             mapping={
                 "status": "completed",

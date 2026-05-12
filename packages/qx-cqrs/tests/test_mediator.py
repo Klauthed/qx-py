@@ -3,26 +3,21 @@
 from __future__ import annotations
 
 from typing import ClassVar
-from uuid import uuid4
 
 import pytest
-
 from qx.core import DomainError, DomainEvent, NotFoundError, Result
 from qx.cqrs import (
-    Behavior,
     Command,
     CommandHandler,
     ExceptionTranslationBehavior,
     Mediator,
     MediatorError,
     Query,
-    QueryHandler,
     command_handler,
     event_handler,
     query_handler,
 )
 from qx.di import Container
-
 
 # ---- Test domain ----
 
@@ -136,9 +131,7 @@ class TestExplicitRegistration:
         assert result.is_success
         assert result.value == "explicit:x@y"
 
-    async def test_duplicate_command_registration_raises(
-        self, mediator: Mediator
-    ) -> None:
+    async def test_duplicate_command_registration_raises(self, mediator: Mediator) -> None:
         mediator.register_command(CreateUserCommand, _ExplicitCreateUser)
         with pytest.raises(MediatorError, match="already has handler"):
             mediator.register_command(CreateUserCommand, _ExplicitCreateUser)
@@ -154,9 +147,7 @@ class TestTypeBasedRegistration:
         assert result.is_success
         assert result.value == "typed:t@y"
 
-    async def test_typed_without_protocol_generic_raises(
-        self, mediator: Mediator
-    ) -> None:
+    async def test_typed_without_protocol_generic_raises(self, mediator: Mediator) -> None:
         class Unbound:
             async def handle(self, cmd: CreateUserCommand) -> Result[str]:
                 return Result.success("x")

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from uuid import UUID
+from uuid import UUID  # noqa: TC003
 
 from pydantic import BaseModel
-
-from qx.core import Identifier, Result
+from qx.core import Result
 from qx.cqrs import Query, query_handler
 from qx.db import SessionFactory, open_session
 
@@ -34,7 +33,7 @@ class GetUserHandler:
     async def handle(self, query: GetUserQuery) -> Result[UserDto]:
         async with open_session(self._sessions) as session:
             repo = UserRepository(session)
-            result = await repo.get(Identifier(value=query.user_id))
+            result = await repo.get(query.user_id)
             if result.is_failure:
                 return Result.failure(result.error)
             u = result.value

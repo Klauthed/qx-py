@@ -6,12 +6,8 @@ drop-on-unknown branches without a live broker.
 
 from __future__ import annotations
 
-import asyncio
 from typing import ClassVar
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
-
-import pytest
 
 from qx.core import IntegrationEvent
 from qx.cqrs import Mediator, integration_event_handler
@@ -43,9 +39,7 @@ class _BoomHandler:
 # ---- Helpers ----
 
 
-def _make_msg(
-    headers: dict[str, str], payload: bytes, *, ack=None, nak=None
-) -> MagicMock:
+def _make_msg(headers: dict[str, str], payload: bytes, *, ack=None, nak=None) -> MagicMock:
     msg = MagicMock()
     msg.headers = headers
     msg.data = payload
@@ -82,9 +76,7 @@ async def test_handler_ack_on_success() -> None:
 
     runtime = _make_runtime(container, registry, mediator)
     # Wire the consumer parse_message to return a real event
-    runtime._consumer.parse_message = MagicMock(
-        return_value=UserRegistered(email="a@b.com")
-    )
+    runtime._consumer.parse_message = MagicMock(return_value=UserRegistered(email="a@b.com"))
     msg = _make_msg(
         {"qx.event_name": "identity.user.registered"},
         b'{"event_name":"identity.user.registered","payload":{"email":"a@b.com"}}',
@@ -104,9 +96,7 @@ async def test_handler_nak_on_exception() -> None:
     mediator.register_integration(UserRegistered, _BoomHandler)
 
     runtime = _make_runtime(container, registry, mediator)
-    runtime._consumer.parse_message = MagicMock(
-        return_value=UserRegistered(email="a@b.com")
-    )
+    runtime._consumer.parse_message = MagicMock(return_value=UserRegistered(email="a@b.com"))
     msg = _make_msg(
         {"qx.event_name": "identity.user.registered"},
         b"{}",
@@ -122,9 +112,7 @@ async def test_unknown_event_type_acks_and_drops() -> None:
     mediator = Mediator(container)
 
     runtime = _make_runtime(container, registry, mediator)
-    runtime._consumer.parse_message = MagicMock(
-        side_effect=EventTypeNotRegistered("unknown")
-    )
+    runtime._consumer.parse_message = MagicMock(side_effect=EventTypeNotRegistered("unknown"))
     msg = _make_msg(
         {"qx.event_name": "unknown.event"},
         b"{}",
@@ -140,9 +128,7 @@ async def test_malformed_payload_naks() -> None:
     mediator = Mediator(container)
 
     runtime = _make_runtime(container, registry, mediator)
-    runtime._consumer.parse_message = MagicMock(
-        side_effect=ValueError("bad json")
-    )
+    runtime._consumer.parse_message = MagicMock(side_effect=ValueError("bad json"))
     msg = _make_msg({"qx.event_name": "x"}, b"junk")
     await runtime._handle_one(msg)
     msg.ack.assert_not_called()

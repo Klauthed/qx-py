@@ -23,25 +23,26 @@ module assumes the stream exists.
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import nats
-from nats.aio.client import Client as NatsClient
-from nats.aio.msg import Msg
-from nats.js import JetStreamContext
 from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from qx.core import IntegrationEvent
 from qx.events.registry import EventRegistry, EventTypeNotRegistered
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from nats.aio.client import Client as NatsClient
+    from nats.aio.msg import Msg
+    from nats.js import JetStreamContext
+    from qx.core import IntegrationEvent
+
 __all__ = [
-    "NatsSettings",
-    "NatsPublisher",
     "NatsConsumer",
+    "NatsPublisher",
+    "NatsSettings",
     "create_nats_connection",
 ]
 
@@ -131,9 +132,7 @@ class NatsPublisher:
         subject = self._subject(event_name)
         hdrs = dict(headers or {})
         hdrs.setdefault("qx.event_name", event_name)
-        await self._jetstream().publish(
-            subject, json.dumps(envelope).encode(), headers=hdrs
-        )
+        await self._jetstream().publish(subject, json.dumps(envelope).encode(), headers=hdrs)
 
 
 # ============================================================
@@ -214,9 +213,7 @@ class NatsConsumer:
     def parse_message(self, msg: Msg) -> IntegrationEvent:
         """Deserialize a NATS message into a concrete IntegrationEvent."""
         envelope = json.loads(msg.data.decode())
-        event_name = envelope.get("event_name") or msg.headers.get(
-            "qx.event_name", ""
-        )
+        event_name = envelope.get("event_name") or (msg.headers or {}).get("qx.event_name", "")
         event_version = int(envelope.get("event_version", 1))
         try:
             cls = self._registry.lookup(event_name, event_version)

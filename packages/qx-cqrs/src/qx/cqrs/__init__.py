@@ -44,15 +44,15 @@ from qx.cqrs.handlers import (
 from qx.cqrs.mediator import Mediator, MediatorError
 from qx.cqrs.messages import Command, Query, Request, TResult
 from qx.cqrs.pipeline import (
+    AuthorizationBehavior,
     Behavior,
     BehaviorChain,
     ExceptionTranslationBehavior,
-    LoggingBehavior,
-    ValidationBehavior,
-    TransactionBehavior,
-    RetryBehavior,
     IdempotencyBehavior,
-    AuthorizationBehavior,
+    LoggingBehavior,
+    RetryBehavior,
+    TransactionBehavior,
+    ValidationBehavior,
     compose,
     get_current_uow,
 )
@@ -60,38 +60,38 @@ from qx.cqrs.pipeline import (
 __version__ = "0.1.0"
 
 __all__ = [
-    # Messages
-    "Command",
-    "Query",
-    "Request",
-    "TResult",
-    # Handlers
-    "CommandHandler",
-    "QueryHandler",
-    "EventHandler",
-    "IntegrationEventHandler",
-    "NotificationHandler",
-    # Decorators
-    "command_handler",
-    "query_handler",
-    "event_handler",
-    "integration_event_handler",
-    "notification_handler",
-    "requires",
-    # Mediator
-    "Mediator",
-    "MediatorError",
+    "AuthorizationBehavior",
     # Pipeline
     "Behavior",
     "BehaviorChain",
-    "compose",
-    "LoggingBehavior",
+    # Messages
+    "Command",
+    # Handlers
+    "CommandHandler",
+    "EventHandler",
     "ExceptionTranslationBehavior",
-    "ValidationBehavior",
-    "TransactionBehavior",
-    "RetryBehavior",
     "IdempotencyBehavior",
-    "AuthorizationBehavior",
-    "get_current_uow",
+    "IntegrationEventHandler",
+    "LoggingBehavior",
+    # Mediator
+    "Mediator",
+    "MediatorError",
+    "NotificationHandler",
+    "Query",
+    "QueryHandler",
+    "Request",
+    "RetryBehavior",
+    "TResult",
+    "TransactionBehavior",
+    "ValidationBehavior",
     "__version__",
+    # Decorators
+    "command_handler",
+    "compose",
+    "event_handler",
+    "get_current_uow",
+    "integration_event_handler",
+    "notification_handler",
+    "query_handler",
+    "requires",
 ]

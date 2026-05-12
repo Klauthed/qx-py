@@ -2,7 +2,7 @@
 name = "qx-http"
 version = "0.1.0"
 description = "Qx HTTP layer: FastAPI integration, container-aware Depends, Result-to-HTTP mapping, middleware"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = { text = "Proprietary" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [

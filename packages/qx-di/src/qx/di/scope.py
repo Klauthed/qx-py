@@ -17,9 +17,11 @@ internal lock around store-or-fetch operations.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
 from contextlib import suppress
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 __all__ = ["Scope"]
 
@@ -27,7 +29,7 @@ __all__ = ["Scope"]
 class Scope:
     """A resolution scope with a per-key instance cache and disposal stack."""
 
-    __slots__ = ("_cache", "_disposers", "_lock", "_closed", "name")
+    __slots__ = ("_cache", "_closed", "_disposers", "_lock", "name")
 
     def __init__(self, name: str = "scope") -> None:
         self.name = name
@@ -70,18 +72,16 @@ class Scope:
                 result = disposer()
                 if asyncio.iscoroutine(result):
                     await result
-            except BaseException as exc:  # noqa: BLE001 — we collect and re-raise as group
+            except BaseException as exc:
                 errors.append(exc)
         self._disposers.clear()
         self._cache.clear()
         if errors:
-            raise BaseExceptionGroup(
-                f"errors disposing scope {self.name!r}", errors
-            )
+            raise BaseExceptionGroup(f"errors disposing scope {self.name!r}", errors)
 
-    async def __aenter__(self) -> "Scope":
+    async def __aenter__(self) -> Scope:
         return self
 
     async def __aexit__(self, *_exc: object) -> None:
-        with suppress(BaseException):  # noqa: BLE001
+        with suppress(BaseException):
             await self.close()

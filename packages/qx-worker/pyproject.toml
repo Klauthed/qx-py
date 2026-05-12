@@ -2,7 +2,7 @@
 name = "qx-worker"
 version = "0.1.0"
 description = "Qx worker runtime: NATS consumer with retry/DLQ/tracing"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = { text = "Proprietary" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [

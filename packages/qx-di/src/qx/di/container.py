@@ -44,9 +44,8 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from collections.abc import Awaitable, Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, TypeVar, cast, get_type_hints, overload
+from typing import TYPE_CHECKING, Any, TypeVar, cast, get_type_hints, overload
 
 from qx.di.providers import (
     FactoryProvider,
@@ -56,7 +55,10 @@ from qx.di.providers import (
 )
 from qx.di.scope import Scope
 
-__all__ = ["Container", "ResolutionError", "RegistrationError"]
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+
+__all__ = ["Container", "RegistrationError", "ResolutionError"]
 
 T = TypeVar("T")
 
@@ -82,7 +84,7 @@ class Container:
     but are safe under asyncio concurrent tasks within a single loop.
     """
 
-    def __init__(self, *, parent: "Container | None" = None, name: str = "root") -> None:
+    def __init__(self, *, parent: Container | None = None, name: str = "root") -> None:
         self._parent = parent
         self.name = name
         self._providers: dict[Any, Provider[Any]] = {}
@@ -107,7 +109,7 @@ class Container:
         *,
         lifetime: Lifetime = Lifetime.TRANSIENT,
         tags: frozenset[str] | set[str] | tuple[str, ...] = (),
-    ) -> "Container": ...
+    ) -> Container: ...
     @overload
     def register(
         self,
@@ -116,7 +118,7 @@ class Container:
         *,
         lifetime: Lifetime = Lifetime.TRANSIENT,
         tags: frozenset[str] | set[str] | tuple[str, ...] = (),
-    ) -> "Container": ...
+    ) -> Container: ...
     def register(
         self,
         key: Any,
@@ -124,7 +126,7 @@ class Container:
         *,
         lifetime: Lifetime = Lifetime.TRANSIENT,
         tags: frozenset[str] | set[str] | tuple[str, ...] = (),
-    ) -> "Container":
+    ) -> Container:
         """Register a key → implementation binding.
 
         ``impl`` may be:
@@ -146,7 +148,7 @@ class Container:
         impl: Any,
         *,
         tags: frozenset[str] | set[str] | tuple[str, ...] = (),
-    ) -> "Container":
+    ) -> Container:
         return self.register(key, impl, lifetime=Lifetime.SINGLETON, tags=tags)
 
     def register_scoped(
@@ -155,7 +157,7 @@ class Container:
         impl: Any,
         *,
         tags: frozenset[str] | set[str] | tuple[str, ...] = (),
-    ) -> "Container":
+    ) -> Container:
         return self.register(key, impl, lifetime=Lifetime.SCOPED, tags=tags)
 
     def register_transient(
@@ -164,10 +166,10 @@ class Container:
         impl: Any,
         *,
         tags: frozenset[str] | set[str] | tuple[str, ...] = (),
-    ) -> "Container":
+    ) -> Container:
         return self.register(key, impl, lifetime=Lifetime.TRANSIENT, tags=tags)
 
-    def register_instance(self, key: type[T] | str, instance: T) -> "Container":
+    def register_instance(self, key: type[T] | str, instance: T) -> Container:
         """Register a pre-built singleton."""
         provider: Provider[T] = InstanceProvider(
             key=key,
@@ -213,7 +215,7 @@ class Container:
 
     async def resolve(self, key: type[T] | str, *, scope: Scope | None = None) -> T:
         """Resolve a key. Walks the graph asynchronously."""
-        return cast(T, await self._resolve(key, scope))
+        return cast("T", await self._resolve(key, scope))
 
     def resolve_sync(self, key: type[T] | str, *, scope: Scope | None = None) -> T:
         """Resolve synchronously. Raises if any provider in the graph is async.
@@ -231,7 +233,7 @@ class Container:
         try:
             coro.send(None)
         except StopIteration as e:
-            return cast(T, e.value)
+            return cast("T", e.value)
         except BaseException:
             coro.close()
             raise
@@ -252,7 +254,7 @@ class Container:
                 hint_target = key.__init__
                 try:
                     hints = get_type_hints(hint_target)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     return
                 for dep in hints.values():
                     if dep is Container or dep is Scope:
@@ -271,7 +273,7 @@ class Container:
         hint_target = factory.__init__ if inspect.isclass(factory) else factory
         try:
             hints = get_type_hints(hint_target)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return
         for dep in hints.values():
             if dep is Container or dep is Scope:
@@ -319,9 +321,7 @@ class Container:
         provider, _ = self._find_provider_with_owner(key)
         return provider
 
-    def _find_provider_with_owner(
-        self, key: Any
-    ) -> tuple[Provider[Any] | None, "Container | None"]:
+    def _find_provider_with_owner(self, key: Any) -> tuple[Provider[Any] | None, Container | None]:
         # Override takes precedence (for tests).
         if key in self._overrides:
             return self._overrides[key], self
@@ -336,7 +336,7 @@ class Container:
         provider: Provider[Any],
         scope: Scope | None,
         *,
-        owner: "Container",
+        owner: Container,
     ) -> Any:
         key = provider.key
         lifetime = provider.lifetime
@@ -370,8 +370,8 @@ class Container:
             self._maybe_register_scope_disposer(scope, value)
             return value
 
-        # TRANSIENT
-        return await provider.provide(self)
+        # TRANSIENT — propagate scope so transient factories can resolve SCOPED deps.
+        return await provider.provide(self, scope=scope)
 
     @staticmethod
     def _maybe_register_scope_disposer(scope: Scope, value: Any) -> None:
@@ -386,7 +386,7 @@ class Container:
         elif hasattr(value, "close") and callable(value.close):
             self._singleton_disposers.append(value.close)
 
-    def _root(self) -> "Container":
+    def _root(self) -> Container:
         node = self
         while node._parent is not None:
             node = node._parent
@@ -396,7 +396,7 @@ class Container:
     # Factory invocation
     # ============================================================
 
-    async def _call_factory(self, factory: Any, key: Any) -> Any:
+    async def _call_factory(self, factory: Any, key: Any, scope: Scope | None = None) -> Any:  # noqa: PLR0912
         """Resolve constructor parameters from the container and invoke."""
         try:
             sig = inspect.signature(factory)
@@ -408,13 +408,10 @@ class Container:
         # For a class, type hints live on __init__, not on the class itself.
         # For a function, get_type_hints on the function returns its hints directly.
         hint_target: Any
-        if inspect.isclass(factory):
-            hint_target = factory.__init__
-        else:
-            hint_target = factory
+        hint_target = factory.__init__ if inspect.isclass(factory) else factory
         try:
             hints = get_type_hints(hint_target)
-        except Exception:  # noqa: BLE001 — type hint resolution can fail many ways
+        except Exception:
             hints = {}
 
         kwargs: dict[str, Any] = {}
@@ -435,12 +432,13 @@ class Container:
             if annot is Container:
                 kwargs[param_name] = self
                 continue
-            # Active scope passes through.
+            # Scope is injectable; hand the active scope to factories that need it.
             if annot is Scope:
-                # Best-effort: not always available. Skip to use default if any.
+                if scope is not None:
+                    kwargs[param_name] = scope
                 continue
             try:
-                kwargs[param_name] = await self._resolve(annot, scope=None)
+                kwargs[param_name] = await self._resolve(annot, scope=scope)
             except ResolutionError:
                 if param.default is inspect.Parameter.empty:
                     raise
@@ -456,7 +454,7 @@ class Container:
     # ============================================================
 
     @asynccontextmanager
-    async def scope(self, name: str = "request"):
+    async def scope(self, name: str = "request") -> AsyncIterator[Scope]:
         """Open a new resolution scope.
 
         Use one per request, message, or job. Scoped providers resolved inside
@@ -470,7 +468,9 @@ class Container:
     # ============================================================
 
     @contextmanager
-    def override(self, key: Any, impl: Any, *, lifetime: Lifetime = Lifetime.SINGLETON) -> Iterator[None]:
+    def override(
+        self, key: Any, impl: Any, *, lifetime: Lifetime = Lifetime.SINGLETON
+    ) -> Iterator[None]:
         """Temporarily replace a registration. Restores on exit.
 
         Designed for tests::
@@ -502,7 +502,7 @@ class Container:
     # Hierarchy
     # ============================================================
 
-    def create_child(self, name: str = "child") -> "Container":
+    def create_child(self, name: str = "child") -> Container:
         """Create a child container. Child registrations shadow parent's for resolution."""
         return Container(parent=self, name=name)
 
@@ -529,7 +529,7 @@ class Container:
                 result = disposer()
                 if asyncio.iscoroutine(result):
                     await result
-            except BaseException as exc:  # noqa: BLE001
+            except BaseException as exc:
                 errors.append(exc)
         self._singleton_disposers.clear()
         self._singletons.clear()

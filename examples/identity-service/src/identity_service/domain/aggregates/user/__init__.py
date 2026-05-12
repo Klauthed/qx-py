@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import ClassVar
-from uuid import UUID, uuid4
+from uuid import UUID  # noqa: TC003
 
 from qx.core import (
     AggregateRoot,
@@ -51,30 +51,24 @@ class User(AggregateRoot[Identifier]):
     is_active: bool = True
 
     @classmethod
-    def register(cls, email: str, name: str) -> Result["User"]:
+    def register(cls, email: str, name: str) -> Result[User]:
         email = email.strip().lower()
         if not email or "@" not in email:
             return Result.failure(
                 DomainError(code="user.invalid_email", message="email is required")
             )
         if not name.strip():
-            return Result.failure(
-                DomainError(code="user.invalid_name", message="name is required")
-            )
+            return Result.failure(DomainError(code="user.invalid_name", message="name is required"))
 
         user = cls(
-            id=Identifier(value=uuid4()),
+            id=Identifier.new(),
             email=email,
             name=name.strip(),
             is_active=True,
         )
+        user.record_event(UserRegistered(user_id=user.id.value, email=email, name=user.name))
         user.record_event(
-            UserRegistered(user_id=user.id.value, email=email, name=user.name)
-        )
-        user.record_event(
-            UserRegisteredIntegration(
-                user_id=user.id.value, email=email, name=user.name
-            )
+            UserRegisteredIntegration(user_id=user.id.value, email=email, name=user.name)
         )
         return Result.success(user)
 
@@ -89,9 +83,7 @@ class User(AggregateRoot[Identifier]):
         old = self.email
         self.email = new_email
         self.record_event(
-            UserEmailChanged(
-                user_id=self.id.value, old_email=old, new_email=new_email
-            )
+            UserEmailChanged(user_id=self.id.value, old_email=old, new_email=new_email)
         )
         return Result.success(None)
 

@@ -14,23 +14,27 @@ in ``qx-db``; this package stays pure.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, ClassVar, Generic, TypeVar, overload
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, dataclass_transform, overload
+from uuid import UUID, uuid4, uuid7
 
 from pydantic import BaseModel, ConfigDict
 
-from qx.core.domain.events import DomainEvent
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from qx.core.domain.events import Event
 
 __all__ = [
-    "Identifier",
-    "Entity",
     "AggregateRoot",
+    "Entity",
+    "Identifier",
     "ValueObject",
-    "entity",
     "aggregate",
+    "entity",
+    "uuid4",
+    "uuid7",
 ]
 
 # We allow either a UUID-backed identifier or a string-backed one (for external ids,
@@ -49,21 +53,32 @@ def _utcnow() -> datetime:
 
 @dataclass(frozen=True)
 class Identifier:
-    """Wrapper for entity identifiers. Defaults to a UUID4-backed value.
+    """Wrapper for entity identifiers. Defaults to a UUID v7-backed value.
+
+    UUID v7 is time-ordered which gives sequential B-tree index locality —
+    ideal for high-write tables (users, orders, events). Use ``new_v4()``
+    when non-predictability matters more than index locality (tokens, API
+    keys, enum-like configuration rows).
 
     Subclass to introduce typed ids (``UserId``, ``OrderId``) — typed ids prevent
     a whole class of bugs where a user id gets passed to an order lookup. Cost is
     minimal because the framework's repository layer is generic in the id type.
     """
 
-    value: UUID = field(default_factory=uuid4)
+    value: UUID = field(default_factory=uuid7)
 
     @classmethod
-    def new(cls) -> "Identifier":
+    def new(cls) -> Identifier:
+        """Return a new UUID v7-backed identifier (time-ordered, DB-friendly)."""
+        return cls(value=uuid7())
+
+    @classmethod
+    def new_v4(cls) -> Identifier:
+        """Return a new UUID v4-backed identifier (random, non-predictable)."""
         return cls(value=uuid4())
 
     @classmethod
-    def parse(cls, raw: str | UUID) -> "Identifier":
+    def parse(cls, raw: str | UUID) -> Identifier:
         return cls(value=raw if isinstance(raw, UUID) else UUID(raw))
 
     def __str__(self) -> str:
@@ -71,7 +86,7 @@ class Identifier:
 
 
 @dataclass(eq=False, kw_only=True)
-class Entity(Generic[TId]):
+class Entity[TId]:
     """Mutable, identity-bearing domain object.
 
     Equality is by ``id``, not by attribute value. This is the whole point of an
@@ -132,12 +147,12 @@ class AggregateRoot(Entity[TId]):
     Aggregates never publish events themselves and never call infrastructure.
     """
 
-    _pending_events: list[DomainEvent] = field(default_factory=list, repr=False)
+    _pending_events: list[Event] = field(default_factory=list, repr=False)
 
-    def record_event(self, event: DomainEvent) -> None:
+    def record_event(self, event: Event) -> None:
         self._pending_events.append(event)
 
-    def pull_events(self) -> list[DomainEvent]:
+    def pull_events(self) -> list[Event]:
         """Drain and return pending events. Called by the persistence layer."""
         events = list(self._pending_events)
         self._pending_events.clear()
@@ -165,7 +180,7 @@ class ValueObject(BaseModel):
         strict=True,
     )
 
-    def with_changes(self, **changes: Any) -> "ValueObject":
+    def with_changes(self, **changes: Any) -> ValueObject:
         return self.model_copy(update=changes)
 
 
@@ -174,11 +189,20 @@ class ValueObject(BaseModel):
 _TCls = TypeVar("_TCls", bound=type)
 
 
+@dataclass_transform(eq_default=False, kw_only_default=True)
 @overload
-def entity(cls: _TCls) -> _TCls: ...
+def entity(cls: _TCls) -> _TCls: ...  # noqa: UP047
+
+
 @overload
-def entity(*, slots: bool = False) -> Callable[[_TCls], _TCls]: ...
-def entity(cls: _TCls | None = None, *, slots: bool = False) -> Any:
+def entity(cls: _TCls, *, slots: bool) -> _TCls: ...  # noqa: UP047
+
+
+@overload
+def entity(*, slots: bool = ...) -> Callable[[_TCls], _TCls]: ...
+
+
+def entity(cls: _TCls | None = None, *, slots: bool = False) -> Any:  # noqa: UP047
     """Mark a class as a Qx entity.
 
     Applies ``@dataclass(eq=False, kw_only=True)`` so the class:
@@ -206,11 +230,20 @@ def entity(cls: _TCls | None = None, *, slots: bool = False) -> Any:
     return wrap(cls)
 
 
+@dataclass_transform(eq_default=False, kw_only_default=True)
 @overload
-def aggregate(cls: _TCls) -> _TCls: ...
+def aggregate(cls: _TCls) -> _TCls: ...  # noqa: UP047
+
+
 @overload
-def aggregate(*, slots: bool = False) -> Callable[[_TCls], _TCls]: ...
-def aggregate(cls: _TCls | None = None, *, slots: bool = False) -> Any:
+def aggregate(cls: _TCls, *, slots: bool) -> _TCls: ...  # noqa: UP047
+
+
+@overload
+def aggregate(*, slots: bool = ...) -> Callable[[_TCls], _TCls]: ...
+
+
+def aggregate(cls: _TCls | None = None, *, slots: bool = False) -> Any:  # noqa: UP047
     """Mark a class as a Qx aggregate root. See ``@entity``.
 
     Functionally identical to ``@entity`` today, but kept as a separate name

@@ -18,19 +18,20 @@ on it.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.types import ASGIApp
-
 from qx.core import RequestContext, request_scope
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
+    from starlette.responses import Response
+    from starlette.types import ASGIApp
 
 __all__ = [
-    "RequestContextMiddleware",
     "MetricsMiddleware",
+    "RequestContextMiddleware",
 ]
 
 
@@ -129,5 +130,5 @@ class MetricsMiddleware(BaseHTTPMiddleware):
                     method=request.method,
                     route=route_path,
                 ).observe(duration)
-            except Exception:  # noqa: BLE001 — metrics must never break the request
+            except Exception:
                 pass

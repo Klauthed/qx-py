@@ -16,26 +16,26 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 __all__ = [
-    "Error",
-    "ValidationError",
-    "DomainError",
-    "UnauthorizedError",
-    "ForbiddenError",
-    "NotFoundError",
+    "ConfigurationError",
     "ConflictError",
+    "DomainError",
+    "Error",
+    "ErrorException",
+    "ForbiddenError",
+    "InfrastructureError",
+    "NotFoundError",
     "PreconditionFailedError",
     "RateLimitedError",
-    "InfrastructureError",
     "TimeoutError",
-    "ConfigurationError",
-    "ErrorException",
+    "UnauthorizedError",
+    "ValidationError",
 ]
 
 
 class ErrorException(Exception):
     """The exception form of an ``Error``. Raised by ``Error.as_exception()``."""
 
-    def __init__(self, error: "Error") -> None:
+    def __init__(self, error: Error) -> None:
         self.error = error
         super().__init__(f"[{error.code}] {error.message}")
 
@@ -191,7 +191,7 @@ class InfrastructureError(Error):
 
 
 @dataclass(frozen=True, slots=True)
-class TimeoutError(Error):  # noqa: A001 — intentional shadow of builtin in this namespace
+class TimeoutError(Error):
     """A bounded operation exceeded its deadline. 504."""
 
     http_status: ClassVar[int] = 504

@@ -7,7 +7,7 @@ namespace / subject), and tear down cleanly at the end.
 
 Usage in a service's ``conftest.py``::
 
-    from qx.testing.containers import postgres_container, redis_container
+    from qx.testing.containers import postgres_container, redis_container  # noqa: PLC0415
 
     @pytest.fixture(scope="session")
     def postgres():
@@ -20,9 +20,11 @@ recommend session scope because container startup dominates test run time.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 __all__ = [
     "postgres_container",
@@ -45,7 +47,7 @@ def postgres_container(
 
         url = container.get_connection_url().replace("postgresql://", "postgresql+asyncpg://")
     """
-    from testcontainers.postgres import PostgresContainer
+    from testcontainers.postgres import PostgresContainer  # noqa: PLC0415
 
     container = PostgresContainer(
         image=image,
@@ -62,7 +64,7 @@ def postgres_container(
 
 @contextmanager
 def redis_container(*, image: str = "redis:7-alpine") -> Iterator[Any]:
-    from testcontainers.redis import RedisContainer
+    from testcontainers.redis import RedisContainer  # noqa: PLC0415
 
     container = RedisContainer(image=image)
     container.start()
@@ -79,8 +81,8 @@ def nats_container(*, image: str = "nats:2.10-alpine") -> Iterator[Any]:
     Starts with JetStream enabled (``-js``) so integration tests of the outbox
     relay / consumer work out of the box.
     """
-    from testcontainers.core.container import DockerContainer
-    from testcontainers.core.waiting_utils import wait_for_logs
+    from testcontainers.core.container import DockerContainer  # noqa: PLC0415
+    from testcontainers.core.waiting_utils import wait_for_logs  # noqa: PLC0415
 
     container = DockerContainer(image=image)
     container.with_command("-js")

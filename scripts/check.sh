@@ -29,7 +29,7 @@ run_check "ruff-format" uv run ruff format --check .
 
 echo ""
 echo "[2/3] Type check (mypy)"
-run_check "mypy" uv run mypy packages/
+run_check "mypy" uv run mypy packages/*/src/ examples/*/src/
 
 echo ""
 echo "[3/3] Tests"

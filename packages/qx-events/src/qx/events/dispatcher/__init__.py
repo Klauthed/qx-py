@@ -12,8 +12,11 @@ trivial adapter so wiring in service bootstrap is one line::
 
 from __future__ import annotations
 
-from qx.core import DomainEvent
-from qx.cqrs import Mediator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qx.core import DomainEvent
+    from qx.cqrs import Mediator
 
 __all__ = ["MediatorEventDispatcher"]
 

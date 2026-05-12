@@ -21,19 +21,16 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    Generic,
     NoReturn,
-    TypeAlias,
+    Self,
     TypeVar,
     cast,
     overload,
 )
 
-from typing_extensions import Self
-
 from qx.core.errors import Error
 
-__all__ = ["Result", "Success", "Failure", "ResultLike"]
+__all__ = ["Failure", "Result", "ResultLike", "Success"]
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -43,7 +40,7 @@ _MISSING: Any = object()
 
 
 @dataclass(frozen=True, slots=True)
-class Success(Generic[T]):
+class Success[T]:
     """Success variant of a ``Result``. Carries the value and arbitrary metadata."""
 
     value: T
@@ -59,7 +56,7 @@ class Failure:
 
 
 @dataclass(frozen=True, slots=True)
-class Result(Generic[T]):
+class Result[T]:
     """A tagged union of ``Success[T]`` or ``Failure``.
 
     Construct via the class methods, never directly::
@@ -116,9 +113,7 @@ class Result(Generic[T]):
         sites that have already proved success via ``is_success``.
         """
         if isinstance(self.outcome, Failure):
-            raise ValueError(
-                f"Called .value on a Failure result: {self.outcome.error.code}"
-            )
+            raise ValueError(f"Called .value on a Failure result: {self.outcome.error.code}")
         return self.outcome.value
 
     @property
@@ -137,34 +132,30 @@ class Result(Generic[T]):
     def map(self, fn: Callable[[T], U], /) -> Result[U]:
         """Apply ``fn`` to a success value; pass failures through unchanged."""
         if isinstance(self.outcome, Failure):
-            return cast(Result[U], self)
+            return cast("Result[U]", self)
         return Result.success(fn(self.outcome.value), **self.outcome.metadata)
 
-    def bind(self, fn: Callable[[T], "Result[U]"], /) -> Result[U]:
+    def bind(self, fn: Callable[[T], Result[U]], /) -> Result[U]:
         """Monadic bind: chain ``Result``-returning functions."""
         if isinstance(self.outcome, Failure):
-            return cast(Result[U], self)
+            return cast("Result[U]", self)
         return fn(self.outcome.value)
 
-    async def map_async(
-        self, fn: Callable[[T], Awaitable[U]], /
-    ) -> Result[U]:
+    async def map_async(self, fn: Callable[[T], Awaitable[U]], /) -> Result[U]:
         if isinstance(self.outcome, Failure):
-            return cast(Result[U], self)
+            return cast("Result[U]", self)
         return Result.success(await fn(self.outcome.value), **self.outcome.metadata)
 
-    async def bind_async(
-        self, fn: Callable[[T], Awaitable["Result[U]"]], /
-    ) -> Result[U]:
+    async def bind_async(self, fn: Callable[[T], Awaitable[Result[U]]], /) -> Result[U]:
         if isinstance(self.outcome, Failure):
-            return cast(Result[U], self)
+            return cast("Result[U]", self)
         return await fn(self.outcome.value)
 
     def map_error(self, fn: Callable[[Error], Error], /) -> Self:
         """Transform the error on a failure; pass successes through."""
         if isinstance(self.outcome, Success):
             return self
-        return cast(Self, Result.failure(fn(self.outcome.error), **self.outcome.metadata))
+        return cast("Self", Result.failure(fn(self.outcome.error), **self.outcome.metadata))
 
     # ---- escape hatches ----
 
@@ -216,10 +207,9 @@ class Result(Generic[T]):
         # Forbid truthiness checks; callers must use is_success / is_failure
         # to avoid the trap of `if result:` silently being always-true.
         raise TypeError(
-            "Result objects do not support truthiness. "
-            "Use .is_success or .is_failure explicitly."
+            "Result objects do not support truthiness. Use .is_success or .is_failure explicitly."
         )
 
 
-ResultLike: TypeAlias = Result[T] | Awaitable[Result[T]]
+type ResultLike[T] = Result[T] | Awaitable[Result[T]]
 """Marker type for APIs that accept either sync or async-returning Results."""

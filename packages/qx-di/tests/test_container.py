@@ -7,17 +7,13 @@ async resolution, override-for-test, cycle detection, async disposal.
 from __future__ import annotations
 
 import pytest
-
 from qx.di import (
     Container,
     Lifetime,
     RegistrationError,
     ResolutionError,
-    scoped,
     singleton,
-    transient,
 )
-
 
 # ---- Test fixtures: simple type graph ----
 
@@ -181,7 +177,7 @@ class TestOverrides:
 
 
 class _CycleA:
-    def __init__(self, b: "_CycleB") -> None: ...
+    def __init__(self, b: _CycleB) -> None: ...
 
 
 class _CycleB:
@@ -193,7 +189,7 @@ class TestCycleDetection:
         c = Container()
         c.register_transient(_CycleA, _CycleA)
         c.register_transient(_CycleB, _CycleB)
-        with pytest.raises(ResolutionError, match="[Cc]yclic"):
+        with pytest.raises(ResolutionError, match=r"[Cc]yclic"):
             await c.resolve(_CycleA)
 
 
@@ -252,7 +248,7 @@ class TestDecorators:
         class Tagged:
             pass
 
-        from qx.di import get_metadata
+        from qx.di import get_metadata  # noqa: PLC0415
 
         meta = get_metadata(Tagged)
         assert meta is not None
@@ -266,7 +262,7 @@ class TestDecorators:
 
         c = Container()
         # Manually use the decorator metadata (scan does this)
-        from qx.di import get_metadata
+        from qx.di import get_metadata  # noqa: PLC0415
 
         meta = get_metadata(RealRepo)
         assert meta is not None

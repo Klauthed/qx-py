@@ -2,7 +2,7 @@
 name = "qx-python-workspace"
 version = "0.1.0"
 description = "Qx Python backend framework ecosystem"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = { text = "Proprietary" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [
@@ -61,7 +61,7 @@ dev = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 extend-exclude = ["**/migrations/**", "**/_generated/**"]
 
 [tool.ruff.lint]
@@ -90,17 +90,40 @@ ignore = [
 "**/templates/**" = ["F", "E", "W"]  # Jinja templates with syntax markers
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 strict = true
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 no_implicit_reexport = false
+explicit_package_bases = true
+mypy_path = [
+    "packages/qx-core/src",
+    "packages/qx-di/src",
+    "packages/qx-cqrs/src",
+    "packages/qx-db/src",
+    "packages/qx-cache/src",
+    "packages/qx-events/src",
+    "packages/qx-http/src",
+    "packages/qx-worker/src",
+    "packages/qx-observability/src",
+    "packages/qx-auth/src",
+    "packages/qx-grpc/src",
+    "packages/qx-search/src",
+    "packages/qx-testing/src",
+    "packages/qx-cli/src",
+    "packages/qx-devtools/src",
+    "examples/identity-service/src",
+]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = "tests.*"
+module = ["tests.*", "*.tests.*"]
 disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["grpc", "grpc.aio", "grpc.*", "google.protobuf", "google.protobuf.*", "google.rpc", "google.rpc.*", "grpc_status", "grpc_status.*", "testcontainers", "testcontainers.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

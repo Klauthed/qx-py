@@ -13,13 +13,11 @@ that, controllers can:
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
-
 from qx.core import (
     Error,
     ErrorException,
@@ -57,9 +55,7 @@ def install_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def handle_request_validation(
-        _req: Request, exc: RequestValidationError
-    ) -> JSONResponse:
+    async def handle_request_validation(_req: Request, exc: RequestValidationError) -> JSONResponse:
         fields = [
             {
                 "path": ".".join(str(p) for p in err["loc"] if p != "body"),

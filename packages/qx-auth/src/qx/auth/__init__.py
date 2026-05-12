@@ -19,27 +19,27 @@ from qx.auth.rbac import Permission, Role
 __version__ = "0.1.0"
 
 __all__ = [
+    # Policy
+    "Decision",
     # JWT
     "JwtSettings",
     "JwtValidator",
-    "Principal",
-    "RevocationCheck",
     # OIDC
     "OidcConfiguration",
     "OidcDiscovery",
     # RBAC
     "Permission",
-    "Role",
-    # Policy
-    "Decision",
     "Policy",
     "PolicyEvaluator",
     "PolicyResult",
-    "require_permission",
-    "require_any_permission",
-    "require_all_permissions",
+    "Principal",
+    "RevocationCheck",
+    "Role",
     # Rate limit
     "TokenBucket",
     "TokenBucketResult",
     "__version__",
+    "require_all_permissions",
+    "require_any_permission",
+    "require_permission",
 ]

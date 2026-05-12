@@ -28,10 +28,10 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 __all__ = [
-    "HealthStatus",
-    "CheckResult",
     "AggregateResult",
+    "CheckResult",
     "HealthRegistry",
+    "HealthStatus",
 ]
 
 
@@ -106,7 +106,7 @@ class HealthRegistry:
                 message=f"timed out after {self._timeout}s",
                 duration_ms=(time.perf_counter() - start) * 1000,
             )
-        except Exception as exc:  # noqa: BLE001 — failed check should not crash probe
+        except Exception as exc:
             return CheckResult(
                 name=name,
                 status=HealthStatus.UNHEALTHY,

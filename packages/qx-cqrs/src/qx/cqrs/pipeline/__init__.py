@@ -42,12 +42,14 @@ Outer behaviors see all inner outcomes, so:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
 import logging
+import random
 import time
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
-from typing import Any, Generic, Protocol, TypeVar, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from qx.core import (
     DomainError,
@@ -59,22 +61,22 @@ from qx.core import (
     UnauthorizedError,
     current_context,
 )
-from qx.cqrs.messages import Command, Query
+from qx.cqrs.messages import Command
 
 __all__ = [
+    "AuthorizationBehavior",
     # Protocol + plumbing
     "Behavior",
     "BehaviorChain",
-    "Next",
-    "compose",
+    "ExceptionTranslationBehavior",
+    "IdempotencyBehavior",
     # Built-in behaviors
     "LoggingBehavior",
-    "ExceptionTranslationBehavior",
-    "ValidationBehavior",
-    "TransactionBehavior",
+    "Next",
     "RetryBehavior",
-    "IdempotencyBehavior",
-    "AuthorizationBehavior",
+    "TransactionBehavior",
+    "ValidationBehavior",
+    "compose",
     # Context-var accessors
     "get_current_uow",
 ]
@@ -113,9 +115,7 @@ class BehaviorChain:
             current = behavior
             previous = next_callable
 
-            async def runner(
-                msg: Any, b: Behavior = current, n: Next = previous
-            ) -> Result[Any]:
+            async def runner(msg: Any, b: Behavior = current, n: Next = previous) -> Result[Any]:
                 return await b.handle(msg, n)
 
             next_callable = runner
@@ -152,7 +152,7 @@ class LoggingBehavior:
         start = time.perf_counter()
         try:
             result = await next_(message)
-        except BaseException as exc:  # noqa: BLE001
+        except BaseException:
             self._log.exception(
                 "%s raised unexpectedly",
                 msg_type,
@@ -211,7 +211,7 @@ class ExceptionTranslationBehavior:
     async def handle(self, message: Any, next_: Next) -> Result[Any]:
         try:
             return await next_(message)
-        except BaseException as exc:  # noqa: BLE001
+        except BaseException as exc:
             if isinstance(exc, Error):
                 return Result.failure(exc)
             return Result.failure(
@@ -423,14 +423,10 @@ class RetryBehavior:
         err = result.error
         if not isinstance(err, _RETRYABLE_TYPES):
             return False
-        if self._codes is not None and err.code not in self._codes:
-            return False
-        return True
+        return not (self._codes is not None and err.code not in self._codes)
 
     def _delay(self, attempt: int) -> float:
-        import random
-
-        raw = self._base * (2**attempt) + random.uniform(0, self._jitter)
+        raw: float = self._base * (2**attempt) + random.uniform(0, self._jitter)
         return min(raw, self._max_delay)
 
     async def handle(self, message: Any, next_: Next) -> Result[Any]:
@@ -531,7 +527,7 @@ class IdempotencyBehavior:
 
         claim = await self._store.begin(tenant, idem_key, payload, ttl_seconds=self._ttl)
         if claim.is_failure:
-            return claim  # type: ignore[return-value]
+            return claim
 
         stored = claim.value
         if stored is not None:
@@ -541,12 +537,8 @@ class IdempotencyBehavior:
         # First execution: run the handler and persist the result.
         result = await next_(message)
         if result.is_success:
-            try:
-                await self._store.complete(
-                    tenant, idem_key, result.value, ttl_seconds=self._ttl
-                )
-            except Exception:  # noqa: BLE001 — idempotency store failure must not kill a successful command
-                pass
+            with contextlib.suppress(Exception):
+                await self._store.complete(tenant, idem_key, result.value, ttl_seconds=self._ttl)
         return result
 
 
@@ -621,7 +613,7 @@ class AuthorizationBehavior:
         for policy in all_policies:
             outcome = await self._evaluate_one(policy, principal, message)
             if outcome.is_failure:
-                return outcome  # type: ignore[return-value]
+                return outcome
 
         return await next_(message)
 
@@ -643,7 +635,9 @@ class AuthorizationBehavior:
             # Inspect .decision — works for both the enum value and its string repr.
             decision = getattr(policy_result, "decision", None)
             decision_str = (
-                decision.value if hasattr(decision, "value") else str(decision)
+                decision.value
+                if decision is not None and hasattr(decision, "value")
+                else str(decision)
             ).lower()
             if decision_str == "deny":
                 reason: str = getattr(policy_result, "reason", None) or "Denied."
@@ -663,7 +657,7 @@ class AuthorizationBehavior:
             if inspect.isawaitable(out):
                 out = await out
             if isinstance(out, Result):
-                return out  # type: ignore[return-value]
+                return out
 
         # Unknown shape — treat as no-opinion (allow).
         return Result.success(None)

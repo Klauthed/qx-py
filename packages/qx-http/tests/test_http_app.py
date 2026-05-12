@@ -7,15 +7,14 @@ infrastructure.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import TYPE_CHECKING
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
+from prometheus_client import CollectorRegistry
 from qx.core import (
-    QxSettings,
     NotFoundError,
+    QxSettings,
     Result,
     ValidationError,
 )
@@ -23,14 +22,14 @@ from qx.cqrs import Command, Mediator, command_handler
 from qx.di import Container
 from qx.http import (
     Inject,
-    envelope_failure,
     envelope_success,
     setup_qx_app,
     unwrap,
 )
 from qx.observability import HealthRegistry, Metrics
-from prometheus_client import CollectorRegistry
 
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 # ---- Test domain ----
 
@@ -77,7 +76,7 @@ def app() -> FastAPI:
     )
 
     @fastapi_app.post("/greet")
-    async def greet(cmd: GreetCommand, m: Mediator = Inject(Mediator)):
+    async def greet(cmd: GreetCommand, m: Mediator = Inject(Mediator)):  # noqa: B008
         result = await m.send(cmd)
         return envelope_success(unwrap(result))
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from qx.core import (
     Failure,
     InfrastructureError,
@@ -105,12 +104,8 @@ class TestResultCombinators:
         assert r.value == 6
 
     def test_map_error_transforms_failure(self) -> None:
-        r: Result[int] = Result.failure(
-            NotFoundError(code="x", message="orig")
-        )
-        r2 = r.map_error(
-            lambda e: InfrastructureError(code="wrapped", message=e.message)
-        )
+        r: Result[int] = Result.failure(NotFoundError(code="x", message="orig"))
+        r2 = r.map_error(lambda e: InfrastructureError(code="wrapped", message=e.message))
         assert r2.error.code == "wrapped"
 
 
@@ -156,10 +151,10 @@ class TestVariants:
 
     def test_success_is_frozen(self) -> None:
         s = Success(value=1)
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             s.value = 2  # type: ignore[misc]
 
     def test_failure_is_frozen(self) -> None:
         f = Failure(error=NotFoundError(code="x", message="x"))
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             f.error = NotFoundError(code="y", message="y")  # type: ignore[misc]

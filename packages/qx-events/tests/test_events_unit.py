@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from typing import ClassVar
-from uuid import uuid4
 
 import pytest
-
 from qx.core import DomainEvent, IntegrationEvent
 from qx.events import EventRegistry, EventTypeNotRegistered, MediatorEventDispatcher
 

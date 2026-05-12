@@ -23,17 +23,19 @@ business handlers.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
-
-from qx.cache import DistributedLock
 from qx.db.outbox import OUTBOX_TABLE_NAME
-from qx.events.nats import NatsPublisher
 from qx.observability import get_logger, trace_span
+from sqlalchemy import text
+
+if TYPE_CHECKING:
+    from qx.cache import DistributedLock
+    from qx.events.nats import NatsPublisher
+    from sqlalchemy.ext.asyncio import AsyncEngine
 
 __all__ = ["OutboxRelay"]
 
@@ -88,7 +90,7 @@ class OutboxRelay:
                     await self._drain_loop()
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self._log.error("outbox-relay error: %s", exc, exc_info=True)
                 await self._sleep(2.0)
         self._log.info("outbox-relay stopped")
@@ -129,7 +131,11 @@ class OutboxRelay:
             published_ids: list[str] = []
             failed: list[tuple[str, str]] = []  # (id, error)
             for row in rows:
-                envelope = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
+                envelope = (
+                    json.loads(row["payload"])
+                    if isinstance(row["payload"], str)
+                    else row["payload"]
+                )
                 headers = {"qx.event_name": row["event_name"]}
                 if row["correlation_id"]:
                     headers["qx.correlation_id"] = str(row["correlation_id"])
@@ -142,7 +148,7 @@ class OutboxRelay:
                         headers=headers,
                     )
                     published_ids.append(row["id"])
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     failed.append((row["id"], f"{type(exc).__name__}: {exc}"))
 
             if published_ids:
@@ -173,7 +179,5 @@ class OutboxRelay:
             return len(published_ids)
 
     async def _sleep(self, seconds: float) -> None:
-        try:
+        with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(self._stop.wait(), timeout=seconds)
-        except TimeoutError:
-            pass

@@ -16,7 +16,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     # Use a private CollectorRegistry so repeated build_app() calls don't
     # collide on the default global registry. Also use a stub engine so we
     # don't actually try to connect to Postgres.
-    from qx.observability import setup_observability as orig_setup_observability
+    from qx.observability import setup_observability as orig_setup_observability  # noqa: PLC0415
 
     fresh_registry = CollectorRegistry()
 
@@ -24,7 +24,8 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         kwargs["metrics_registry"] = fresh_registry
         return orig_setup_observability(*args, **kwargs)
 
-    import identity_service.main as main_mod
+    import identity_service.main as main_mod  # noqa: PLC0415
+
     monkeypatch.setattr(main_mod, "setup_observability", patched_setup_observability)
 
     return TestClient(main_mod.build_app())

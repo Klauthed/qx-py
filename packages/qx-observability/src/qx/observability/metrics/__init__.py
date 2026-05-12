@@ -32,14 +32,24 @@ from prometheus_client import (
     generate_latest,
 )
 
-__all__ = ["Metrics", "default_metrics", "render_metrics", "CONTENT_TYPE_LATEST"]
+__all__ = ["CONTENT_TYPE_LATEST", "Metrics", "default_metrics", "render_metrics"]
 
 
 # Buckets in seconds. Tail matters more than the median for SLI graphs, so we
 # concentrate buckets where slow-but-not-broken requests live.
 DEFAULT_BUCKETS = (
-    0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.250, 0.500,
-    1.0, 2.5, 5.0, 10.0,
+    0.001,
+    0.005,
+    0.010,
+    0.025,
+    0.050,
+    0.100,
+    0.250,
+    0.500,
+    1.0,
+    2.5,
+    5.0,
+    10.0,
 )
 
 
@@ -122,9 +132,7 @@ class Metrics:
         labelnames: tuple[str, ...] = (),
         buckets: tuple[float, ...] = DEFAULT_BUCKETS,
     ) -> Histogram:
-        return Histogram(
-            name, doc, labelnames=labelnames, buckets=buckets, registry=self.registry
-        )
+        return Histogram(name, doc, labelnames=labelnames, buckets=buckets, registry=self.registry)
 
     def gauge(self, name: str, doc: str, labelnames: tuple[str, ...] = ()) -> Gauge:
         return Gauge(name, doc, labelnames=labelnames, registry=self.registry)
@@ -135,7 +143,7 @@ _default: Metrics | None = None
 
 def default_metrics() -> Metrics:
     """Lazily constructed module-level Metrics for adapter code that can't take an injection."""
-    global _default
+    global _default  # noqa: PLW0603
     if _default is None:
         _default = Metrics()
     return _default

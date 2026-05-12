@@ -12,12 +12,12 @@ from pathlib import Path
 __version__ = "0.1.0"
 
 __all__ = [
-    "RUFF_CONFIG",
+    "EDITORCONFIG",
     "MYPY_CONFIG",
     "PRE_COMMIT_CONFIG",
-    "EDITORCONFIG",
-    "write_configs",
+    "RUFF_CONFIG",
     "__version__",
+    "write_configs",
 ]
 
 

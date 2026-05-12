@@ -18,18 +18,18 @@ from qx.testing.fixtures import (
 __version__ = "0.1.0"
 
 __all__ = [
+    # Doubles
+    "MediatorStub",
+    # Assertions
+    "OutboxAssert",
+    "RepositoryStub",
+    "__version__",
+    # Fixtures
+    "container_factory",
+    "http_client_factory",
+    "mediator_factory",
+    "nats_container",
     # Containers
     "postgres_container",
     "redis_container",
-    "nats_container",
-    # Doubles
-    "MediatorStub",
-    "RepositoryStub",
-    # Assertions
-    "OutboxAssert",
-    # Fixtures
-    "container_factory",
-    "mediator_factory",
-    "http_client_factory",
-    "__version__",
 ]

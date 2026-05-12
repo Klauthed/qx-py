@@ -9,12 +9,12 @@ from qx.cache.idempotency import IdempotencyConflictError, IdempotencyStore
 __version__ = "0.1.0"
 
 __all__ = [
-    "CacheSettings",
-    "create_client",
     "Cache",
-    "IdempotencyStore",
-    "IdempotencyConflictError",
+    "CacheSettings",
     "DistributedLock",
+    "IdempotencyConflictError",
+    "IdempotencyStore",
     "LockNotHeldError",
     "__version__",
+    "create_client",
 ]

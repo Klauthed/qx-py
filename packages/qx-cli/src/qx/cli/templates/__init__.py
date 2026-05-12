@@ -27,7 +27,7 @@ from jinja2 import Environment, StrictUndefined
 from rich.console import Console
 from rich.tree import Tree
 
-__all__ = ["render_tree", "preview_tree"]
+__all__ = ["preview_tree", "render_tree"]
 
 console = Console()
 
@@ -49,7 +49,7 @@ def _make_env() -> Environment:
 
 
 def _snake_case(s: str) -> str:
-    import re
+    import re  # noqa: PLC0415
 
     s = re.sub(r"[\s\-]+", "_", s.strip())
     s = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", s)
@@ -87,7 +87,7 @@ def render_tree(
 
     source_root = resources.files(template_pkg)
     if template_root:
-        source_root = source_root / template_root  # type: ignore[operator]
+        source_root = source_root / template_root
 
     for entry in _walk(source_root):
         rel = entry["rel"]
@@ -132,7 +132,7 @@ def _walk(source_root: Any) -> list[dict[str, Any]]:
 
 def _substitute_path(path: str, context: dict[str, Any]) -> str:
     """Replace ``__key__`` occurrences in path with ``context[key]``."""
-    import re
+    import re  # noqa: PLC0415
 
     def repl(m: re.Match[str]) -> str:
         key = m.group(1)

@@ -18,8 +18,7 @@ without callers needing to know the propagator API.
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -32,15 +31,17 @@ from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
 )
 from opentelemetry.trace import Status, StatusCode
-
 from qx.core import QxSettings, current_context
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 __all__ = [
     "configure_tracing",
-    "trace_span",
+    "extract_context",
     "get_tracer",
     "inject_context",
-    "extract_context",
+    "trace_span",
 ]
 
 
@@ -61,7 +62,7 @@ def configure_tracing(
     development. ``console_export`` adds a stderr-printing processor; handy
     while iterating but very loud.
     """
-    global _PROVIDER
+    global _PROVIDER  # noqa: PLW0603
     resource = Resource.create(
         {
             "service.name": settings.app.name,
@@ -113,7 +114,7 @@ def trace_span(
     with tracer.start_as_current_span(name, attributes=span_attrs) as span:
         try:
             yield span
-        except BaseException as exc:  # noqa: BLE001
+        except BaseException as exc:
             span.record_exception(exc)
             span.set_status(Status(StatusCode.ERROR, description=str(exc)))
             raise

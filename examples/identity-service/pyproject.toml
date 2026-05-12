@@ -2,7 +2,7 @@
 name = "identity-service"
 version = "0.1.0"
 description = "Reference Qx service: full CQRS + outbox + worker example."
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     "qx-core",
     "qx-di",

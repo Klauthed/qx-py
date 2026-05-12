@@ -13,13 +13,18 @@ from __future__ import annotations
 
 import enum
 import inspect
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from qx.di.container import Container
+    from qx.di.scope import Scope
 
 T = TypeVar("T")
 
-__all__ = ["Lifetime", "Provider", "FactoryProvider", "InstanceProvider"]
+__all__ = ["FactoryProvider", "InstanceProvider", "Lifetime", "Provider"]
 
 
 class Lifetime(enum.Enum):
@@ -50,7 +55,7 @@ class Lifetime(enum.Enum):
 
 
 @dataclass
-class Provider(Generic[T]):
+class Provider[T]:
     """Base provider: descriptor of how to produce a ``T``.
 
     The container owns provider lookup by key (usually the abstract type/protocol).
@@ -63,7 +68,7 @@ class Provider(Generic[T]):
     # Tags let the container fetch providers by metadata, e.g., "all event handlers"
     tags: frozenset[str] = field(default_factory=frozenset)
 
-    async def provide(self, container: "Container") -> T:  # type: ignore[name-defined,empty-body]  # noqa: F821
+    async def provide(self, container: Container, scope: Scope | None = None) -> T:
         raise NotImplementedError
 
     @property
@@ -87,11 +92,8 @@ class FactoryProvider(Provider[T]):
 
     factory: Callable[..., T] | Callable[..., Awaitable[T]] = field(default=lambda: None)  # type: ignore[assignment]
 
-    async def provide(self, container: "Container") -> T:  # noqa: F821
-        # The actual resolution is performed by Container._call_factory because
-        # it needs access to the scope to resolve dependencies. The provider
-        # only carries the factory + lifetime metadata.
-        return await container._call_factory(self.factory, self.key)  # type: ignore[attr-defined]
+    async def provide(self, container: Container, scope: Scope | None = None) -> T:
+        return await container._call_factory(self.factory, self.key, scope=scope)  # type: ignore[no-any-return]
 
     @property
     def is_async_provider(self) -> bool:
@@ -108,7 +110,7 @@ class InstanceProvider(Provider[T]):
 
     instance: T = field(default=None)  # type: ignore[assignment]
 
-    async def provide(self, container: "Container") -> T:  # noqa: ARG002, F821
+    async def provide(self, container: Container, scope: Scope | None = None) -> T:
         return self.instance
 
     @property

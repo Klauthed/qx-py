@@ -20,11 +20,12 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass
-from typing import Any
-
-import httpx
+from typing import TYPE_CHECKING, Any
 
 from qx.core import InfrastructureError, Result
+
+if TYPE_CHECKING:
+    import httpx
 
 __all__ = ["OidcConfiguration", "OidcDiscovery"]
 
@@ -70,7 +71,7 @@ class OidcDiscovery:
             try:
                 resp = await self._http.get(url, timeout=5.0)
                 resp.raise_for_status()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 return Result.failure(
                     InfrastructureError(
                         code="oidc.discovery_failed",

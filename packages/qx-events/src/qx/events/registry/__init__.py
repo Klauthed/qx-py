@@ -21,7 +21,10 @@ When the worker pulls a NATS message, the registry resolves the class:
 
 from __future__ import annotations
 
-from qx.core import IntegrationEvent
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qx.core import IntegrationEvent
 
 __all__ = ["EventRegistry", "EventTypeNotRegistered"]
 
@@ -38,9 +41,7 @@ class EventRegistry:
 
     def register(self, event_cls: type[IntegrationEvent]) -> None:
         if not event_cls.event_name:
-            raise ValueError(
-                f"{event_cls.__name__} has no event_name; cannot register"
-            )
+            raise ValueError(f"{event_cls.__name__} has no event_name; cannot register")
         key = (event_cls.event_name, event_cls.event_version)
         existing = self._by_name.get(key)
         if existing is not None and existing is not event_cls:

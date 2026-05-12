@@ -19,12 +19,14 @@ for the boring 80% and let the long tail use the underlying tool.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from qx.core import Result
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-__all__ = ["SearchRepository", "SearchQuery", "SearchHit"]
+    from qx.core import Result
+
+__all__ = ["SearchHit", "SearchQuery", "SearchRepository"]
 
 
 TDoc = TypeVar("TDoc")
@@ -54,14 +56,14 @@ class SearchQuery:
         self.sort = sort
 
 
-class SearchHit(Generic[TDoc]):
+class SearchHit[TDoc]:
     def __init__(self, doc: TDoc, score: float, source: dict[str, Any]) -> None:
         self.doc = doc
         self.score = score
         self.source = source
 
 
-class SearchRepository(ABC, Generic[TDoc]):
+class SearchRepository[TDoc](ABC):
     """Abstract base for typed search repositories."""
 
     @abstractmethod
@@ -71,7 +73,5 @@ class SearchRepository(ABC, Generic[TDoc]):
     async def delete(self, doc_id: str) -> Result[None]: ...
 
     @abstractmethod
-    async def search(
-        self, query: SearchQuery
-    ) -> Result[tuple[list[SearchHit[TDoc]], int]]:
+    async def search(self, query: SearchQuery) -> Result[tuple[list[SearchHit[TDoc]], int]]:
         """Search → ``(hits, total)`` (total is approximate for large result sets)."""

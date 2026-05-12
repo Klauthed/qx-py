@@ -6,11 +6,11 @@ integration event recorded by the aggregate.
 
 from __future__ import annotations
 
-from uuid import UUID
+from uuid import UUID  # noqa: TC003
 
-from qx.core import Identifier, Result
+from qx.core import Result
 from qx.cqrs import Command, command_handler
-from qx.db import UnitOfWork
+from qx.db import UnitOfWork  # noqa: TC002
 
 from identity_service.infrastructure.persistence.user import UserRepository
 
@@ -28,7 +28,7 @@ class ChangeEmailHandler:
     async def handle(self, command: ChangeEmailCommand) -> Result[None]:
         async with self._uow:
             repo = UserRepository(self._uow.session)
-            load_result = await repo.get(Identifier(value=command.user_id))
+            load_result = await repo.get(command.user_id)
             if load_result.is_failure:
                 return Result.failure(load_result.error)
 

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
+from prometheus_client import CollectorRegistry
 from qx.core import QxSettings
 from qx.observability import (
     HealthRegistry,
@@ -13,8 +12,6 @@ from qx.observability import (
     get_logger,
 )
 from qx.observability.health import CheckResult
-from prometheus_client import CollectorRegistry
-
 
 # ---- Metrics ----
 
@@ -71,9 +68,7 @@ async def test_degraded_when_partial_failure() -> None:
         return None
 
     async def degraded() -> CheckResult:
-        return CheckResult(
-            name="cache", status=HealthStatus.DEGRADED, message="warming up"
-        )
+        return CheckResult(name="cache", status=HealthStatus.DEGRADED, message="warming up")
 
     r.add_readiness("db", good)
     r.add_readiness("cache", degraded)
@@ -85,7 +80,7 @@ async def test_check_timeout() -> None:
     r = HealthRegistry(default_timeout_seconds=0.05)
 
     async def slow() -> None:
-        import asyncio
+        import asyncio  # noqa: PLC0415
 
         await asyncio.sleep(0.5)
 

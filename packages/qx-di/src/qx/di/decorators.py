@@ -13,21 +13,24 @@ import importlib
 import importlib.util
 import inspect
 import pkgutil
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from types import ModuleType
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
-from qx.di.container import Container
 from qx.di.providers import Lifetime
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from types import ModuleType
+
+    from qx.di.container import Container
+
 __all__ = [
-    "injectable",
-    "singleton",
-    "scoped",
-    "transient",
     "Injectable",
+    "injectable",
     "scan",
+    "scoped",
+    "singleton",
+    "transient",
 ]
 
 
@@ -44,7 +47,7 @@ class Injectable:
     tags: frozenset[str] = field(default_factory=frozenset)
 
 
-def _stamp(
+def _stamp(  # noqa: UP047
     cls: _T,
     *,
     lifetime: Lifetime,
@@ -119,15 +122,13 @@ def scan(
     registers ``UserRepository → PostgresUserRepository``. Without ``key`` it
     registers ``PostgresUserRepository → PostgresUserRepository``.
     """
-    mod = (
-        importlib.import_module(package) if isinstance(package, str) else package
-    )
+    mod = importlib.import_module(package) if isinstance(package, str) else package
     registered = 0
     seen: set[type] = set()
 
     def walk(module: ModuleType) -> None:
         nonlocal registered
-        for name, obj in inspect.getmembers(module):
+        for _name, obj in inspect.getmembers(module):
             if not inspect.isclass(obj):
                 continue
             if obj in seen:
@@ -152,7 +153,7 @@ def scan(
         for module_info in pkgutil.walk_packages(mod.__path__, prefix=f"{mod.__name__}."):
             try:
                 submodule = importlib.import_module(module_info.name)
-            except Exception:  # noqa: BLE001 — keep scanning despite individual failures
+            except Exception:
                 continue
             walk(submodule)
 
@@ -161,4 +162,4 @@ def scan(
 
 def get_metadata(cls: type) -> Injectable | None:
     """Read the injection metadata stamped on a class, if any."""
-    return cast(Injectable | None, getattr(cls, _MARKER_ATTR, None))
+    return cast("Injectable | None", getattr(cls, _MARKER_ATTR, None))

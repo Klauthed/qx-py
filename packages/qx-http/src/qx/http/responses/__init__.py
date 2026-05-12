@@ -26,14 +26,13 @@ work for caching, retries, alerting).
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Generic, TypeVar
-from uuid import UUID
+from typing import Any, ClassVar, TypeVar
+from uuid import UUID  # noqa: TC003
 
 from pydantic import BaseModel, ConfigDict, Field
-
 from qx.core import current_context
 
-__all__ = ["ApiResponse", "ApiError", "ApiMetadata", "envelope_success", "envelope_failure"]
+__all__ = ["ApiError", "ApiMetadata", "ApiResponse", "envelope_failure", "envelope_success"]
 
 T = TypeVar("T")
 
@@ -59,7 +58,7 @@ class ApiMetadata(BaseModel):
     next_cursor: str | None = None
 
 
-class ApiResponse(BaseModel, Generic[T]):
+class ApiResponse[T](BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     success: bool

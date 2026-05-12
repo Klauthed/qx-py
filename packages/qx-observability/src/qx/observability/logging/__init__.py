@@ -23,14 +23,15 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
-from structlog.types import EventDict, Processor
-
 from qx.core import LoggingSection, current_context
 
-__all__ = ["configure_logging", "get_logger", "context_processor"]
+if TYPE_CHECKING:
+    from structlog.types import EventDict, Processor
+
+__all__ = ["configure_logging", "context_processor", "get_logger"]
 
 
 def context_processor(_logger: Any, _name: str, event_dict: EventDict) -> EventDict:
@@ -62,7 +63,7 @@ def _otel_processor(_logger: Any, _name: str, event_dict: EventDict) -> EventDic
     Lazily imported so packages without OTel installed still work.
     """
     try:
-        from opentelemetry import trace as _trace
+        from opentelemetry import trace as _trace  # noqa: PLC0415
     except ImportError:
         return event_dict
     span = _trace.get_current_span()
@@ -127,9 +128,7 @@ def configure_logging(
 
     structlog.configure(
         processors=[*shared_processors, final],
-        wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(logging, settings.level)
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, settings.level)),
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         cache_logger_on_first_use=True,
     )

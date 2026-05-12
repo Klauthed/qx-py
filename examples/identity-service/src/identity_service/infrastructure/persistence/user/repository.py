@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from sqlalchemy import select
+from typing import Any, ClassVar
 
 from qx.core import Identifier, NotFoundError, Result
 from qx.db import Repository
+from sqlalchemy import select
 
 from identity_service.domain.aggregates.user import User
 from identity_service.infrastructure.persistence.user.mapping import users_table
@@ -16,8 +15,8 @@ from identity_service.infrastructure.persistence.user.mapping import users_table
 class UserRepository(Repository[User]):
     entity_cls = User
     table = users_table
-    filterable_fields = {"email", "name", "is_active"}
-    sortable_fields = {"created_at", "email"}
+    filterable_fields: ClassVar[set[str]] = {"email", "name", "is_active"}
+    sortable_fields: ClassVar[set[str]] = {"created_at", "email"}
 
     async def find_by_email(self, email: str) -> Result[User]:
         """Look up a user by email within the current tenant scope."""

@@ -19,7 +19,7 @@ import redis.asyncio as aioredis
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-__all__ = ["CacheSettings", "create_client", "Cache"]
+__all__ = ["Cache", "CacheSettings", "create_client"]
 
 
 class CacheSettings(BaseSettings):

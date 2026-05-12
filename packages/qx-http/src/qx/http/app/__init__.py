@@ -24,19 +24,21 @@ Services then mount their own routers::
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
-
-from qx.core import QxSettings
-from qx.di import Container
-from qx.observability import HealthRegistry, Metrics
 from qx.http.deps import attach_container
 from qx.http.exceptions import install_exception_handlers
 from qx.http.middleware import MetricsMiddleware, RequestContextMiddleware
 from qx.http.probes import make_probes_router
+from qx.observability import HealthRegistry, Metrics
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from qx.core import QxSettings
+    from qx.di import Container
 
 __all__ = ["setup_qx_app"]
 
@@ -67,9 +69,9 @@ def setup_qx_app(
 
     # Ensure Metrics + HealthRegistry can be resolved by Inject(). Idempotent
     # if the caller already registered them.
-    if Metrics not in container._providers:  # noqa: SLF001
+    if Metrics not in container._providers:
         container.register_instance(Metrics, metrics)
-    if HealthRegistry not in container._providers:  # noqa: SLF001
+    if HealthRegistry not in container._providers:
         container.register_instance(HealthRegistry, health)
 
     app = FastAPI(

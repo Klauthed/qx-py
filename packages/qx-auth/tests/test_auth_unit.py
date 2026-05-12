@@ -6,18 +6,14 @@ against them. No live IdP, no live Redis — pure logic.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import time
 from typing import Any
-from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-
 from qx.auth import (
     Decision,
     JwtSettings,
@@ -30,7 +26,6 @@ from qx.auth import (
     require_permission,
 )
 from qx.auth.policy import Policy, PolicyResult
-
 
 # ---- RSA key pair + JWKS fixture ----
 

@@ -25,16 +25,16 @@ unit-of-work doesn't pull a hard dependency on the mediator. The wiring layer
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any, Protocol, runtime_checkable
-
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from qx.core import AggregateRoot, DomainEvent, IntegrationEvent, current_context
-from qx.db.engine import SessionFactory
-from qx.db.outbox import OutboxRecorder
 
-__all__ = ["UnitOfWork", "EventDispatcher"]
+if TYPE_CHECKING:
+    from qx.db.engine import SessionFactory
+    from qx.db.outbox import OutboxRecorder
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+__all__ = ["EventDispatcher", "UnitOfWork"]
 
 
 @runtime_checkable
@@ -70,9 +70,7 @@ class UnitOfWork:
     @property
     def session(self) -> AsyncSession:
         if self._session is None:
-            raise RuntimeError(
-                "UnitOfWork session accessed outside of `async with` block"
-            )
+            raise RuntimeError("UnitOfWork session accessed outside of `async with` block")
         return self._session
 
     def track(self, aggregate: AggregateRoot[Any]) -> None:
@@ -137,7 +135,7 @@ class UnitOfWork:
         await self._session.rollback()
         self._rolled_back = True
 
-    async def __aenter__(self) -> "UnitOfWork":
+    async def __aenter__(self) -> UnitOfWork:
         self._session = self._factory()
         await self._session.begin()
         return self

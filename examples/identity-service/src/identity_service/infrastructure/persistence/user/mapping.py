@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, String, Table, UniqueConstraint
-
 from qx.db import make_registry, standard_audit_columns, uuid_column
+from sqlalchemy import Boolean, Column, String, Table, UniqueConstraint
 
 from identity_service.domain.aggregates.user import User
 from identity_service.infrastructure import metadata

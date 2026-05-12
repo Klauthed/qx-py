@@ -2,7 +2,7 @@
 name = "qx-cache"
 version = "0.1.0"
 description = "Qx cache layer: Redis client, idempotency store, distributed locks"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = { text = "Proprietary" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [

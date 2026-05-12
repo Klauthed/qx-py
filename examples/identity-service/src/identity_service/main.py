@@ -8,10 +8,8 @@ A separate ``identity_service.worker:main`` boots the worker (NATS consumer).
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI
+from typing import TYPE_CHECKING
 
 from qx.core import QxSettings
 from qx.cqrs import ExceptionTranslationBehavior, LoggingBehavior, Mediator
@@ -26,14 +24,19 @@ from qx.db.outbox import DefaultOutboxRecorder
 from qx.di import Container
 from qx.events import EventRegistry, MediatorEventDispatcher
 from qx.http import setup_qx_app
-from qx.observability import HealthRegistry, Metrics, setup_observability
+from qx.observability import setup_observability
 
 from identity_service.application import register_events, register_handlers
 from identity_service.presentation import register_routes
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from fastapi import FastAPI
+
 
 def build_app() -> FastAPI:
-    settings = QxSettings(app={"name": "identity-service"})  # type: ignore[arg-type]
+    settings = QxSettings(app={"name": "identity-service"})
     metrics, health = setup_observability(settings)
 
     container = Container()

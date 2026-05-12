@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import Any
 
 import typer
-from rich.console import Console
-
 from qx.cli.templates import preview_tree, render_tree
+from rich.console import Console
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
@@ -38,9 +38,7 @@ def _service_package(start: Path | None = None) -> tuple[Path, str]:
                 return candidate / "src" / pkg, pkg
             if (candidate / pkg).exists():
                 return candidate / pkg, pkg
-    raise typer.BadParameter(
-        "Could not locate a qx service from current directory."
-    )
+    raise typer.BadParameter("Could not locate a qx service from current directory.")
 
 
 @app.command()
@@ -157,7 +155,7 @@ def endpoint(
 # ---- helpers ----
 
 
-def _names(name: str, pkg: str) -> dict[str, str]:
+def _names(name: str, pkg: str) -> dict[str, Any]:
     """Build the standard naming variants for a generated artifact."""
     return {
         "name_pascal": _pascal(name),
@@ -168,7 +166,7 @@ def _names(name: str, pkg: str) -> dict[str, str]:
 
 
 def _snake(s: str) -> str:
-    import re
+    import re  # noqa: PLC0415
 
     s = re.sub(r"[\s\-]+", "_", s.strip())
     s = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", s)

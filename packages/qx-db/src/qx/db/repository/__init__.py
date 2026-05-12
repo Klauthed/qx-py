@@ -17,13 +17,7 @@ controllers to SQL syntax and prevent the repo from validating queries.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any, Generic, TypeVar
-from uuid import UUID
-
-from sqlalchemy import Column, Table, and_, delete, func, or_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql import ColumnElement, Select
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from qx.core import (
     ConflictError,
@@ -36,7 +30,15 @@ from qx.core import (
     current_context,
     utcnow,
 )
-from qx.core.types.pagination import FilterOp, Sort
+from sqlalchemy import Column, Table, delete, func, select, update
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from uuid import UUID
+
+    from qx.core.types.pagination import FilterOp, Sort
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.sql import ColumnElement, Select
 
 __all__ = ["Repository"]
 
@@ -44,7 +46,7 @@ __all__ = ["Repository"]
 TEntity = TypeVar("TEntity", bound=Entity[Any])
 
 
-class Repository(Generic[TEntity]):
+class Repository[TEntity: Entity[Any]]:
     """Base repository with typed CRUD against a single aggregate table.
 
     Subclass and supply the entity type and table at class-definition time::
@@ -59,8 +61,8 @@ class Repository(Generic[TEntity]):
 
     entity_cls: type[TEntity]
     table: Table
-    filterable_fields: set[str] = set()
-    sortable_fields: set[str] = {"created_at"}
+    filterable_fields: ClassVar[set[str]] = set()
+    sortable_fields: ClassVar[set[str]] = {"created_at"}
 
     # Subclasses can override to disable tenant filtering for global-scoped tables.
     tenanted: bool = True
@@ -97,7 +99,7 @@ class Repository(Generic[TEntity]):
 
     async def list(
         self,
-        pagination: OffsetPagination = OffsetPagination(),
+        pagination: OffsetPagination = OffsetPagination(),  # noqa: B008
         *,
         include_deleted: bool = False,
     ) -> OffsetPage[TEntity]:
@@ -145,11 +147,11 @@ class Repository(Generic[TEntity]):
         values["updated_by"] = ctx.user_id
         stmt = (
             update(self.table)
-            .where(self.table.c.id == entity.id, self.table.c.version == current_version)
+            .where(self.table.c.id == values["id"], self.table.c.version == current_version)
             .values(**values)
         )
         result = await self._session.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             return Result.failure(
                 ConflictError(
                     code=f"{self.entity_cls.__name__.lower()}.version_conflict",
@@ -174,7 +176,7 @@ class Repository(Generic[TEntity]):
             .values(deleted_at=utcnow(), deleted_by=ctx.user_id)
         )
         result = await self._session.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             return Result.failure(
                 NotFoundError(
                     code=f"{self.entity_cls.__name__.lower()}.not_found",
@@ -187,7 +189,7 @@ class Repository(Generic[TEntity]):
         """Physical delete. Avoid except for GDPR / right-to-be-forgotten paths."""
         stmt = delete(self.table).where(self.table.c.id == id)
         result = await self._session.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             return Result.failure(
                 NotFoundError(
                     code=f"{self.entity_cls.__name__.lower()}.not_found",
@@ -241,9 +243,7 @@ class Repository(Generic[TEntity]):
         order_cols: list[Any] = []
         for s in sorts:
             if s.field not in sortable:
-                raise ValueError(
-                    f"Field {s.field!r} is not sortable on {self.entity_cls.__name__}"
-                )
+                raise ValueError(f"Field {s.field!r} is not sortable on {self.entity_cls.__name__}")
             col = self.table.c[s.field]
             order_cols.append(col.desc() if s.direction == "desc" else col.asc())
         # Always include id as a stable tiebreaker for deterministic pagination.
@@ -251,23 +251,23 @@ class Repository(Generic[TEntity]):
         return stmt.order_by(*order_cols)
 
 
-def _apply_op(col: ColumnElement[Any], op: FilterOp, value: Any) -> ColumnElement[bool]:
+def _apply_op(col: ColumnElement[Any], op: FilterOp, value: Any) -> ColumnElement[bool]:  # noqa: PLR0911, PLR0912
     if op == "eq":
-        return col == value
+        return col == value  # type: ignore[no-any-return]
     if op == "neq":
-        return col != value
+        return col != value  # type: ignore[no-any-return]
     if op == "in":
         return col.in_(value)
     if op == "not_in":
         return ~col.in_(value)
     if op == "gt":
-        return col > value
+        return col > value  # type: ignore[no-any-return]
     if op == "gte":
-        return col >= value
+        return col >= value  # type: ignore[no-any-return]
     if op == "lt":
-        return col < value
+        return col < value  # type: ignore[no-any-return]
     if op == "lte":
-        return col <= value
+        return col <= value  # type: ignore[no-any-return]
     if op == "contains":
         return col.ilike(f"%{value}%")
     if op == "starts_with":

@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-
-import redis.asyncio as aioredis
+from typing import TYPE_CHECKING
 
 from qx.core import RateLimitedError, Result
+
+if TYPE_CHECKING:
+    import redis.asyncio as aioredis
 
 __all__ = ["TokenBucket", "TokenBucketResult"]
 
@@ -94,7 +96,7 @@ class TokenBucket:
         # would fully refill — otherwise we'd lose state and grant new
         # capacity. ``capacity / refill_per_second`` * 2 is a safe default.
         ttl = max(int((self._capacity / max(self._refill, 0.001)) * 2), 60)
-        result = await self._r.eval(  # type: ignore[no-untyped-call]
+        result = await self._r.eval(  # type: ignore[misc]
             _LUA_TAKE,
             1,
             self._key(key),

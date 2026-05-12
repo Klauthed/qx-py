@@ -15,7 +15,7 @@ The generic parameter ``TResult`` lets type-based handler discovery introspect
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -24,7 +24,7 @@ __all__ = ["Command", "Query", "Request", "TResult"]
 TResult = TypeVar("TResult")
 
 
-class _MessageBase(BaseModel, Generic[TResult]):
+class _MessageBase[TResult](BaseModel):
     """Common base for commands and queries.
 
     Frozen because immutability eliminates a class of bugs (handler mutates the
@@ -58,4 +58,4 @@ class Query(_MessageBase[TResult]):
 
 
 # Convenience alias for code that wants to talk about either.
-Request = Command | Query
+Request = Command[Any] | Query[Any]

@@ -19,10 +19,13 @@ the request path at all.
 from __future__ import annotations
 
 import contextlib
-from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import redis.asyncio as aioredis
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    import redis.asyncio as aioredis
 
 __all__ = ["DistributedLock", "LockNotHeldError"]
 
@@ -72,14 +75,14 @@ class DistributedLock:
         end
         return 0
         """
-        result = await self._r.eval(script, 1, self._name, self._token, str(ttl_seconds))  # type: ignore[no-untyped-call]
+        result = await self._r.eval(script, 1, self._name, self._token, str(ttl_seconds))  # type: ignore[misc]
         return bool(result)
 
     async def release(self) -> None:
         """Release the lock — only deletes if the token still matches."""
         if self._token is None:
             return
-        await self._r.eval(_RELEASE_SCRIPT, 1, self._name, self._token)  # type: ignore[no-untyped-call]
+        await self._r.eval(_RELEASE_SCRIPT, 1, self._name, self._token)  # type: ignore[misc]
         self._token = None
 
     @contextlib.asynccontextmanager

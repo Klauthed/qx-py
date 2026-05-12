@@ -6,24 +6,19 @@ IdempotencyBehavior, AuthorizationBehavior, and the @requires decorator.
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, call
-from uuid import UUID, uuid4
 
 import pytest
-
 from qx.core import (
+    ForbiddenError,
     InfrastructureError,
     NotFoundError,
+    RequestContext,
     Result,
     UnauthorizedError,
-    ForbiddenError,
     ValidationError,
-    request_scope,
-    RequestContext,
-    set_context,
     reset_context,
+    set_context,
 )
 from qx.cqrs import (
     AuthorizationBehavior,
@@ -36,7 +31,6 @@ from qx.cqrs import (
     get_current_uow,
     requires,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -78,9 +72,7 @@ class TestValidationBehavior:
 
             async def validate_business(self) -> Result[None]:
                 if self.should_fail:
-                    return Result.failure(
-                        ValidationError(code="v.fail", message="bad input")
-                    )
+                    return Result.failure(ValidationError(code="v.fail", message="bad input"))
                 return Result.success(None)
 
         behavior = ValidationBehavior()
@@ -136,7 +128,7 @@ class _FakeUoW:
         self.entered = False
         self.exited = False
 
-    async def __aenter__(self) -> "_FakeUoW":
+    async def __aenter__(self) -> _FakeUoW:
         self.entered = True
         return self
 
@@ -219,9 +211,7 @@ class TestRetryBehavior:
             nonlocal calls
             calls += 1
             if calls < 3:
-                return Result.failure(
-                    InfrastructureError(code="db.timeout", message="timeout")
-                )
+                return Result.failure(InfrastructureError(code="db.timeout", message="timeout"))
             return Result.success("done")
 
         behavior = RetryBehavior(max_attempts=3, base_delay_seconds=0.0, jitter=0.0)
@@ -232,9 +222,7 @@ class TestRetryBehavior:
     @pytest.mark.asyncio
     async def test_exhausts_attempts_and_returns_last_failure(self):
         async def always_fail(msg: Any) -> Result[str]:
-            return Result.failure(
-                InfrastructureError(code="db.error", message="persistent error")
-            )
+            return Result.failure(InfrastructureError(code="db.error", message="persistent error"))
 
         behavior = RetryBehavior(max_attempts=2, base_delay_seconds=0.0, jitter=0.0)
         result = await behavior.handle(_OkCmd(), always_fail)
@@ -262,9 +250,7 @@ class TestRetryBehavior:
         async def next_(msg: Any) -> Result[str]:
             nonlocal calls
             calls += 1
-            return Result.failure(
-                InfrastructureError(code="db.lock", message="lock")
-            )
+            return Result.failure(InfrastructureError(code="db.lock", message="lock"))
 
         behavior = RetryBehavior(
             max_attempts=3,
@@ -342,9 +328,7 @@ class TestIdempotencyBehavior:
             return Result.success("fresh")
 
         behavior = IdempotencyBehavior(store)
-        result = await behavior.handle(
-            _IdempotentCmd(idempotency_key="key-1"), counting_next
-        )
+        result = await behavior.handle(_IdempotentCmd(idempotency_key="key-1"), counting_next)
         assert result.is_success
         assert result.value == "cached-response"
         assert not handler_called
@@ -353,9 +337,7 @@ class TestIdempotencyBehavior:
     async def test_store_failure_propagates(self):
         class _FailStore:
             async def begin(self, tenant, idem_key, payload, *, ttl_seconds=None):
-                return Result.failure(
-                    InfrastructureError(code="cache.unavailable", message="down")
-                )
+                return Result.failure(InfrastructureError(code="cache.unavailable", message="down"))
 
             async def complete(self, tenant, idem_key, response, *, ttl_seconds=None):
                 pass
@@ -380,9 +362,7 @@ class _DenyPolicy:
     name = "test-deny"
 
     async def evaluate(self, principal: Any, message: Any) -> Result[None]:
-        return Result.failure(
-            ForbiddenError(code="authz.denied", message="Denied.", details={})
-        )
+        return Result.failure(ForbiddenError(code="authz.denied", message="Denied.", details={}))
 
 
 class TestAuthorizationBehavior:
@@ -430,6 +410,7 @@ class TestAuthorizationBehavior:
         ctx = self._ctx_with_principal("user-1")
         token = set_context(ctx)
         try:
+
             async def callable_policy(principal: Any, message: Any) -> Result[None]:
                 return Result.success(None)
 

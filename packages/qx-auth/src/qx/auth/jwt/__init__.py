@@ -23,7 +23,6 @@ the raw claims dict. Keeps the security boundary clean.
 
 from __future__ import annotations
 
-import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
@@ -34,18 +33,16 @@ import jwt
 from jwt import PyJWKClient
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 from qx.core import (
-    ConfigurationError,
     InfrastructureError,
     Result,
     UnauthorizedError,
 )
 
 __all__ = [
-    "Principal",
     "JwtSettings",
     "JwtValidator",
+    "Principal",
     "RevocationCheck",
 ]
 
@@ -118,7 +115,7 @@ class JwtValidator:
             lifespan=settings.cache_keys_ttl_seconds,
         )
 
-    async def validate(self, token: str) -> Result[Principal]:
+    async def validate(self, token: str) -> Result[Principal]:  # noqa: PLR0911
         # Pull the right key for this token's `kid` header.
         try:
             signing_key = self._jwk_client.get_signing_key_from_jwt(token).key
@@ -130,7 +127,7 @@ class JwtValidator:
                     cause=exc,
                 )
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return Result.failure(
                 UnauthorizedError(
                     code="auth.invalid_token",
@@ -193,7 +190,7 @@ class JwtValidator:
                             message="token has been revoked",
                         )
                     )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 # Fail closed on revocation-check infrastructure errors.
                 return Result.failure(
                     InfrastructureError(
@@ -231,14 +228,9 @@ class JwtValidator:
                 )
 
         roles = claims.get("qx:roles") or claims.get("roles") or []
-        permissions = (
-            claims.get("qx:permissions") or claims.get("permissions") or []
-        )
+        permissions = claims.get("qx:permissions") or claims.get("permissions") or []
         scopes_raw = claims.get("scope") or claims.get("scp") or ""
-        if isinstance(scopes_raw, str):
-            scopes = scopes_raw.split()
-        else:
-            scopes = list(scopes_raw)
+        scopes = scopes_raw.split() if isinstance(scopes_raw, str) else list(scopes_raw)
 
         principal = Principal(
             subject=sub,

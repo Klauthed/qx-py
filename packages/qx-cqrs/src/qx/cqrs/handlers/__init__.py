@@ -20,14 +20,13 @@ worth it.
 
 from __future__ import annotations
 
-from typing import Generic, Protocol, TypeVar, runtime_checkable
+from typing import Any, Protocol, TypeVar, runtime_checkable
 
 from qx.core import DomainEvent, IntegrationEvent, Notification, Result
+from qx.cqrs.messages import Command, Query  # noqa: TC002
 
-from qx.cqrs.messages import Command, Query
-
-TCommand = TypeVar("TCommand", bound=Command)
-TQuery = TypeVar("TQuery", bound=Query)
+TCommand = TypeVar("TCommand", bound="Command[Any]")
+TQuery = TypeVar("TQuery", bound="Query[Any]")
 TEvent = TypeVar("TEvent", bound=DomainEvent)
 TIntegration = TypeVar("TIntegration", bound=IntegrationEvent)
 TNotification = TypeVar("TNotification", bound=Notification)
@@ -35,15 +34,15 @@ TResult = TypeVar("TResult")
 
 __all__ = [
     "CommandHandler",
-    "QueryHandler",
     "EventHandler",
     "IntegrationEventHandler",
     "NotificationHandler",
+    "QueryHandler",
 ]
 
 
 @runtime_checkable
-class CommandHandler(Protocol, Generic[TCommand, TResult]):
+class CommandHandler[TCommand: "Command[Any]", TResult](Protocol):
     """Handle a command. Return a ``Result[TResult]``.
 
     Handlers MUST NOT raise for business failures — return ``Result.failure``
@@ -56,14 +55,14 @@ class CommandHandler(Protocol, Generic[TCommand, TResult]):
 
 
 @runtime_checkable
-class QueryHandler(Protocol, Generic[TQuery, TResult]):
+class QueryHandler[TQuery: "Query[Any]", TResult](Protocol):
     """Handle a query. Return a ``Result[TResult]`` reading without side effects."""
 
     async def handle(self, query: TQuery) -> Result[TResult]: ...
 
 
 @runtime_checkable
-class EventHandler(Protocol, Generic[TEvent]):
+class EventHandler[TEvent: DomainEvent](Protocol):
     """Handle a domain event. In-process. Failures roll back the transaction.
 
     Events may have multiple handlers; the mediator dispatches to all and
@@ -75,7 +74,7 @@ class EventHandler(Protocol, Generic[TEvent]):
 
 
 @runtime_checkable
-class IntegrationEventHandler(Protocol, Generic[TIntegration]):
+class IntegrationEventHandler[TIntegration: IntegrationEvent](Protocol):
     """Handle a cross-process integration event (consumed from the broker).
 
     Distinct from ``EventHandler`` because the lifecycle differs: integration
@@ -87,7 +86,7 @@ class IntegrationEventHandler(Protocol, Generic[TIntegration]):
 
 
 @runtime_checkable
-class NotificationHandler(Protocol, Generic[TNotification]):
+class NotificationHandler[TNotification: Notification](Protocol):
     """Handle a notification. Fire-and-forget; failures don't affect the source."""
 
     async def handle(self, notification: TNotification) -> None: ...

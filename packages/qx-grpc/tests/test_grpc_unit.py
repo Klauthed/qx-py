@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import grpc
 from google.rpc import code_pb2  # type: ignore[import-not-found]
-
 from qx.core import NotFoundError, RateLimitedError
 from qx.grpc.errors import status_from_error
 

@@ -7,7 +7,7 @@ fixtures with one line::
 
 Or pick selectively::
 
-    from qx.testing.fixtures import container, mediator, http_client
+    from qx.testing.fixtures import container, mediator, http_client  # noqa: PLC0415
 
 The fixtures here are **not auto-registered** — pytest discovers fixtures in
 the test file's conftest scope. Importing them is intentional so we keep the
@@ -16,11 +16,16 @@ testing module side-effect-free.
 
 from __future__ import annotations
 
-import pytest
+from typing import TYPE_CHECKING
 
 from qx.di import Container
 
-__all__ = ["container_factory", "mediator_factory", "http_client_factory"]
+if TYPE_CHECKING:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from qx.cqrs import Mediator
+
+__all__ = ["container_factory", "http_client_factory", "mediator_factory"]
 
 
 def container_factory() -> Container:
@@ -28,15 +33,15 @@ def container_factory() -> Container:
     return Container()
 
 
-def mediator_factory(container: Container | None = None) -> "Mediator":  # noqa: F821
+def mediator_factory(container: Container | None = None) -> Mediator:
     """Build a mediator backed by an optional container."""
-    from qx.cqrs import Mediator
+    from qx.cqrs import Mediator as _Mediator  # noqa: PLC0415
 
-    return Mediator(container or Container())
+    return _Mediator(container or Container())
 
 
-def http_client_factory(app: "FastAPI") -> "TestClient":  # noqa: F821
+def http_client_factory(app: FastAPI) -> TestClient:
     """Build a FastAPI TestClient for an app."""
-    from fastapi.testclient import TestClient
+    from fastapi.testclient import TestClient as _TestClient  # noqa: PLC0415
 
-    return TestClient(app)
+    return _TestClient(app)

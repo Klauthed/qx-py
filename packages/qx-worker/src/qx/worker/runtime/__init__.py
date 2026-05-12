@@ -24,13 +24,15 @@ messages from the same durable consumer (NATS load-balances).
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from qx.core import RequestContext, request_scope
-from qx.cqrs import Mediator
-from qx.di import Container
 from qx.events import EventRegistry, EventTypeNotRegistered, NatsConsumer
 from qx.observability import get_logger, trace_span
+
+if TYPE_CHECKING:
+    from qx.cqrs import Mediator
+    from qx.di import Container
 
 __all__ = ["WorkerRuntime"]
 
@@ -64,10 +66,10 @@ class WorkerRuntime:
             while not self._stop.is_set():
                 try:
                     batch = await sub.fetch(self._concurrency, timeout=5.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # No messages available right now; loop back.
                     continue
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     self._log.error("worker fetch error: %s", exc, exc_info=True)
                     await asyncio.sleep(1.0)
                     continue
@@ -86,14 +88,14 @@ class WorkerRuntime:
         # Decode payload + resolve event class.
         try:
             event = self._consumer.parse_message(msg)
-        except EventTypeNotRegistered as exc:
+        except EventTypeNotRegistered:
             # Unknown event type — terminate this delivery with ack so it
             # doesn't redeliver. The original publisher should monitor
             # consumer-side dead-letter signals for these.
             self._log.warning("unknown event type %s; acking and dropping", event_name)
             await msg.ack()
             return
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # Malformed payload. Nak with backoff so ops can investigate.
             self._log.error(
                 "failed to parse event %s: %s",
@@ -105,7 +107,7 @@ class WorkerRuntime:
             return
 
         # Build request context from the envelope.
-        from uuid import UUID, uuid4
+        from uuid import UUID, uuid4  # noqa: PLC0415
 
         def _uuid(v: str | None) -> UUID:
             try:
@@ -120,19 +122,22 @@ class WorkerRuntime:
             attributes={"event_name": event_name},
         )
 
-        with request_scope(ctx), trace_span(
-            f"consume.{event_name}",
-            attributes={
-                "messaging.system": "nats",
-                "messaging.destination.name": event_name,
-                "qx.event_name": event_name,
-            },
+        with (
+            request_scope(ctx),
+            trace_span(
+                f"consume.{event_name}",
+                attributes={
+                    "messaging.system": "nats",
+                    "messaging.destination.name": event_name,
+                    "qx.event_name": event_name,
+                },
+            ),
         ):
             try:
                 async with self._container.scope("worker") as scope:
                     await self._mediator.consume_integration(event, scope=scope)
                 await msg.ack()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self._log.error(
                     "handler failed for %s: %s",
                     event_name,

@@ -28,7 +28,7 @@ from identity_service.application import register_events, register_handlers
 
 
 async def main() -> None:
-    settings = QxSettings(app={"name": "identity-worker"})  # type: ignore[arg-type]
+    settings = QxSettings(app={"name": "identity-worker"})
     setup_observability(settings)
     log = get_logger("identity.worker")
 

@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import ClassVar
 from uuid import uuid4
 
-import pytest
-
 from qx.core import Entity, Identifier, Result, aggregate
-from qx.cqrs import Command, Query, command_handler, query_handler
+from qx.cqrs import Command
 from qx.testing import MediatorStub, RepositoryStub
 
 
@@ -80,7 +77,7 @@ async def test_mediator_stub_routes_command() -> None:
 
 
 async def test_mediator_stub_records_published_events() -> None:
-    from qx.core import DomainEvent
+    from qx.core import DomainEvent  # noqa: PLC0415
 
     class _E(DomainEvent):
         event_name: ClassVar[str] = "x.e"

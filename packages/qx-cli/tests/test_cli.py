@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import ast
-import subprocess
-import sys
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+from qx.cli.main import app
 from typer.testing import CliRunner
 
-from qx.cli.main import app
+if TYPE_CHECKING:
+    from pathlib import Path
 
 runner = CliRunner()
 

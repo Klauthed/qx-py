@@ -31,9 +31,7 @@ def _find_compose_file() -> Path:
         c = parent / "deploy" / "docker-compose.yaml"
         if c.exists():
             return c
-    raise typer.BadParameter(
-        "Could not find a docker-compose.yaml. Run from a qx project tree."
-    )
+    raise typer.BadParameter("Could not find a docker-compose.yaml. Run from a qx project tree.")
 
 
 def _docker_compose_cmd() -> list[str]:

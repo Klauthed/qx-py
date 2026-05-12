@@ -8,13 +8,12 @@ transaction.
 
 from __future__ import annotations
 
-from uuid import UUID
+from uuid import UUID  # noqa: TC003
 
 from pydantic import BaseModel
-
 from qx.core import ConflictError, Result
 from qx.cqrs import Command, command_handler
-from qx.db import SessionFactory, UnitOfWork
+from qx.db import SessionFactory, UnitOfWork  # noqa: TC002
 
 from identity_service.domain.aggregates.user import User
 from identity_service.infrastructure.persistence.user import UserRepository
@@ -59,11 +58,13 @@ class CreateUserHandler:
 
             user_result = User.register(command.email, command.name)
             if user_result.is_failure:
-                return user_result.map(lambda _: CreateUserDto(  # unreachable but typed
-                    id=user_result.value.id.value,
-                    email=user_result.value.email,
-                    name=user_result.value.name,
-                ))
+                return user_result.map(
+                    lambda _: CreateUserDto(  # unreachable but typed
+                        id=user_result.value.id.value,
+                        email=user_result.value.email,
+                        name=user_result.value.name,
+                    )
+                )
 
             user = user_result.value
             self._uow.track(user)
@@ -73,6 +74,4 @@ class CreateUserHandler:
 
             await self._uow.commit()
 
-        return Result.success(
-            CreateUserDto(id=user.id.value, email=user.email, name=user.name)
-        )
+        return Result.success(CreateUserDto(id=user.id.value, email=user.email, name=user.name))

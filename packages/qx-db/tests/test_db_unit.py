@@ -10,15 +10,14 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import MetaData
-
+from qx.core.types.pagination import Sort
 from qx.db.outbox import OUTBOX_TABLE_NAME, include_outbox_table
 from qx.db.pagination import (
     build_cursor_page,
     decode_cursor,
     encode_cursor,
 )
-from qx.core.types.pagination import Sort
+from sqlalchemy import MetaData
 
 
 def test_cursor_roundtrip_strings() -> None:
@@ -43,9 +42,12 @@ def test_cursor_is_opaque_text() -> None:
 
 
 def test_build_cursor_page_returns_trimmed_items_and_cursor() -> None:
-    from types import SimpleNamespace
+    from types import SimpleNamespace  # noqa: PLC0415
 
-    rows = [SimpleNamespace(id=str(i), created_at=datetime(2024, 1, i + 1, tzinfo=UTC)) for i in range(6)]
+    rows = [
+        SimpleNamespace(id=str(i), created_at=datetime(2024, 1, i + 1, tzinfo=UTC))
+        for i in range(6)
+    ]
     page = build_cursor_page(
         rows,
         limit=5,
@@ -58,7 +60,7 @@ def test_build_cursor_page_returns_trimmed_items_and_cursor() -> None:
 
 
 def test_build_cursor_page_no_next_when_under_limit() -> None:
-    from types import SimpleNamespace
+    from types import SimpleNamespace  # noqa: PLC0415
 
     rows = [SimpleNamespace(id=str(i)) for i in range(3)]
     page = build_cursor_page(rows, limit=5, sort=(), cursor_fields=("id",))

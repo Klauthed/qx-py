@@ -17,9 +17,8 @@ runtimes (Lambda, Fly Machines) where a connection pool fights the platform.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,11 +30,14 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import AsyncAdaptedQueuePool, NullPool
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
 __all__ = [
     "DatabaseSettings",
+    "SessionFactory",
     "create_engine",
     "make_session_factory",
-    "SessionFactory",
 ]
 
 

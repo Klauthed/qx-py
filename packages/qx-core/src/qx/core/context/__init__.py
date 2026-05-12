@@ -26,19 +26,21 @@ Write pattern (edge code only)::
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 __all__ = [
     "RequestContext",
     "current_context",
     "request_scope",
-    "set_context",
     "reset_context",
+    "set_context",
 ]
 
 
@@ -65,10 +67,10 @@ class RequestContext:
     # Don't put large objects here; this gets copied on every context inheritance.
     attributes: dict[str, Any] = field(default_factory=dict)
 
-    def with_changes(self, **changes: Any) -> "RequestContext":
+    def with_changes(self, **changes: Any) -> RequestContext:
         return replace(self, **changes)
 
-    def child(self, **overrides: Any) -> "RequestContext":
+    def child(self, **overrides: Any) -> RequestContext:
         """Derive a child context (e.g., when fanning out to background work).
 
         ``correlation_id`` and ``trace_id`` carry over; ``request_id`` is fresh.

@@ -11,25 +11,27 @@ handler holds expensive caches that you want shared.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
-from qx.core import DomainEvent, IntegrationEvent, Notification
 from qx.di import Lifetime, injectable
 
-from qx.cqrs.messages import Command, Query
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from qx.core import DomainEvent, IntegrationEvent, Notification
+    from qx.cqrs.messages import Command, Query
 
 __all__ = [
+    "HANDLER_MARKER",
+    "POLICY_MARKER",
+    "HandlerKind",
     "command_handler",
-    "query_handler",
     "event_handler",
     "integration_event_handler",
     "notification_handler",
+    "query_handler",
     "requires",
-    "HandlerKind",
-    "HANDLER_MARKER",
-    "POLICY_MARKER",
 ]
 
 HandlerKind = Literal["command", "query", "event", "integration", "notification"]
@@ -57,7 +59,7 @@ def _stamp(target: type, kind: HandlerKind, lifetime: Lifetime) -> Callable[[_T]
 
 
 def command_handler(
-    command_type: type[Command],
+    command_type: type[Command[Any]],
     *,
     lifetime: Lifetime = Lifetime.TRANSIENT,
 ) -> Callable[[_T], _T]:
@@ -66,7 +68,7 @@ def command_handler(
 
 
 def query_handler(
-    query_type: type[Query],
+    query_type: type[Query[Any]],
     *,
     lifetime: Lifetime = Lifetime.TRANSIENT,
 ) -> Callable[[_T], _T]:

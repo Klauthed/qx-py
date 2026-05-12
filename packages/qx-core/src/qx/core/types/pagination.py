@@ -7,21 +7,21 @@ ad-hoc shapes in each feature slice — which always leads to client confusion.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any, ClassVar, Generic, Literal, TypeVar
+from collections.abc import Sequence  # noqa: TC003
+from typing import Any, ClassVar, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
-    "SortDirection",
-    "Sort",
+    "CursorPage",
+    "CursorPagination",
     "Filter",
     "FilterOp",
-    "OffsetPagination",
     "OffsetPage",
-    "CursorPagination",
-    "CursorPage",
+    "OffsetPagination",
     "Page",
+    "Sort",
+    "SortDirection",
 ]
 
 T = TypeVar("T")
@@ -79,7 +79,7 @@ class OffsetPagination(BaseModel):
         return (self.page - 1) * self.page_size
 
 
-class OffsetPage(BaseModel, Generic[T]):
+class OffsetPage[T](BaseModel):
     """Response shape for offset-based pagination."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
@@ -120,7 +120,7 @@ class CursorPagination(BaseModel):
     filters: tuple[Filter, ...] = ()
 
 
-class CursorPage(BaseModel, Generic[T]):
+class CursorPage[T](BaseModel):
     """Response shape for cursor-based pagination.
 
     ``next_cursor`` is opaque — the repository encodes whatever it needs (sort

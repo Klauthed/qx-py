@@ -15,9 +15,7 @@ storage. This is the "test against the contract, not the implementation" school.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any, Generic, TypeVar
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from qx.core import (
     ConflictError,
@@ -28,8 +26,11 @@ from qx.core import (
     OffsetPagination,
     Result,
 )
-from qx.cqrs import Mediator, MediatorError
+from qx.cqrs import MediatorError
 from qx.cqrs.messages import Command, Query
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 __all__ = ["MediatorStub", "RepositoryStub"]
 
@@ -37,7 +38,7 @@ __all__ = ["MediatorStub", "RepositoryStub"]
 TEntity = TypeVar("TEntity", bound=Entity[Any])
 
 
-class RepositoryStub(Generic[TEntity]):
+class RepositoryStub[TEntity: Entity[Any]]:
     """In-memory stand-in for a Qx Repository.
 
     Behavior mirrors the real Repository's contract closely enough that
@@ -67,14 +68,11 @@ class RepositoryStub(Generic[TEntity]):
 
     async def list(
         self,
-        pagination: OffsetPagination = OffsetPagination(),
+        pagination: OffsetPagination = OffsetPagination(),  # noqa: B008
         *,
         include_deleted: bool = False,
     ) -> OffsetPage[TEntity]:
-        items = [
-            e for id_, e in self._store.items()
-            if include_deleted or id_ not in self._deleted
-        ]
+        items = [e for id_, e in self._store.items() if include_deleted or id_ not in self._deleted]
         offset = pagination.offset
         sliced = items[offset : offset + pagination.page_size]
         return OffsetPage(
@@ -86,9 +84,7 @@ class RepositoryStub(Generic[TEntity]):
 
     async def add(self, entity: TEntity) -> Result[TEntity]:
         if entity.id in self._store:
-            return Result.failure(
-                ConflictError(code="duplicate", message=f"id {entity.id} exists")
-            )
+            return Result.failure(ConflictError(code="duplicate", message=f"id {entity.id} exists"))
         self._store[entity.id] = entity
         return Result.success(entity)
 

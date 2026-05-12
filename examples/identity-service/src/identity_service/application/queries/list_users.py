@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
-
+from pydantic import Field
 from qx.core import OffsetPage, OffsetPagination, Result
 from qx.cqrs import Query, query_handler
 from qx.db import SessionFactory, open_session
@@ -25,9 +24,7 @@ class ListUsersHandler:
     async def handle(self, query: ListUsersQuery) -> Result[OffsetPage[UserDto]]:
         async with open_session(self._sessions) as session:
             repo = UserRepository(session)
-            page = await repo.list(
-                OffsetPagination(page=query.page, page_size=query.page_size)
-            )
+            page = await repo.list(OffsetPagination(page=query.page, page_size=query.page_size))
 
         dtos = [
             UserDto(

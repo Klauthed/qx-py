@@ -18,10 +18,10 @@ __all__ = [
     "EventRegistry",
     "EventTypeNotRegistered",
     "MediatorEventDispatcher",
-    "NatsSettings",
-    "NatsPublisher",
     "NatsConsumer",
-    "create_nats_connection",
+    "NatsPublisher",
+    "NatsSettings",
     "OutboxRelay",
     "__version__",
+    "create_nats_connection",
 ]

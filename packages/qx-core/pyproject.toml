@@ -2,7 +2,7 @@
 name = "qx-core"
 version = "0.1.0"
 description = "Qx framework core primitives: Result, Error, Entity, RequestContext"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = { text = "Proprietary" }
 authors = [{ name = "Qx Engineering" }]
 readme = "README.md"

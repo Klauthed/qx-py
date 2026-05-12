@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 from prometheus_client import CollectorRegistry
-
-from qx.core import InfrastructureError, NotFoundError, Result
+from qx.core import NotFoundError, Result
 from qx.cqrs import Command, Query
 from qx.observability.behaviors import MetricsBehavior, TracingBehavior
 from qx.observability.metrics import Metrics
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -87,11 +84,7 @@ class TestMetricsBehavior:
         result = await behavior.handle(_Other(), _ok_next)
         assert result.is_success
         # No metric recorded for _Other — counter samples should all be zero
-        all_values = [
-            s.value
-            for mf in metrics.command_total.collect()
-            for s in mf.samples
-        ]
+        all_values = [s.value for mf in metrics.command_total.collect() for s in mf.samples]
         assert all(v == 0.0 for v in all_values)
 
     @pytest.mark.asyncio
@@ -136,10 +129,10 @@ class TestTracingBehavior:
     @pytest.mark.asyncio
     async def test_span_names_for_command_and_query(self):
         """OTel provider can only be set once globally; test both in one provider scope."""
-        from opentelemetry import trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-        from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        from opentelemetry import trace  # noqa: PLC0415
+        from opentelemetry.sdk.trace import TracerProvider  # noqa: PLC0415
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor  # noqa: PLC0415
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import (  # noqa: PLC0415
             InMemorySpanExporter,
         )
 

@@ -12,17 +12,18 @@ implementations are added by callers via the normal ``add_*_to_server`` stubs::
 
 from __future__ import annotations
 
-from typing import Any
-
-import grpc
-
-from qx.di import Container
+from typing import TYPE_CHECKING, Any
 
 from qx.grpc.interceptors import (
     ExceptionInterceptor,
     MetricsInterceptor,
     RequestContextInterceptor,
 )
+
+import grpc
+
+if TYPE_CHECKING:
+    from qx.di import Container
 
 __all__ = ["create_grpc_server"]
 

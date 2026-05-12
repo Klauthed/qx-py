@@ -2,7 +2,7 @@
 name = "qx-observability"
 version = "0.1.0"
 description = "Qx observability: structlog logging, OpenTelemetry tracing, Prometheus metrics, health probes"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = { text = "Proprietary" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [

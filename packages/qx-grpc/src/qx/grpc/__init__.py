@@ -13,11 +13,11 @@ from qx.grpc.server import create_grpc_server
 __version__ = "0.1.0"
 
 __all__ = [
-    "create_grpc_server",
-    "RequestContextInterceptor",
-    "MetricsInterceptor",
     "ExceptionInterceptor",
-    "abort_with_error",
-    "status_from_error",
+    "MetricsInterceptor",
+    "RequestContextInterceptor",
     "__version__",
+    "abort_with_error",
+    "create_grpc_server",
+    "status_from_error",
 ]

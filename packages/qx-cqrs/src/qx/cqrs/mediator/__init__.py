@@ -39,18 +39,14 @@ themselves have constructor dependencies that flow through normally.
 from __future__ import annotations
 
 import inspect
-from collections.abc import Awaitable, Callable
-from typing import Any, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Any, get_args, get_origin
 
 from qx.core import (
     DomainEvent,
-    Error,
     IntegrationEvent,
     Notification,
     Result,
 )
-from qx.di import Container, Scope
-
 from qx.cqrs.handlers import (
     CommandHandler,
     EventHandler,
@@ -60,6 +56,9 @@ from qx.cqrs.handlers import (
 )
 from qx.cqrs.messages import Command, Query
 from qx.cqrs.pipeline import Behavior, compose
+
+if TYPE_CHECKING:
+    from qx.di import Container, Scope
 
 __all__ = ["Mediator", "MediatorError"]
 
@@ -104,7 +103,7 @@ class Mediator:
         self,
         message: type[Command[Any]],
         handler: type[Any],
-    ) -> "Mediator":
+    ) -> Mediator:
         if message in self._command_handlers:
             raise MediatorError(
                 f"Command {message.__name__} already has handler "
@@ -112,7 +111,7 @@ class Mediator:
             )
         self._command_handlers[message] = handler
         # Ensure the handler can be resolved from DI even if not explicitly registered.
-        if handler not in self._container._providers:  # noqa: SLF001
+        if handler not in self._container._providers:
             self._container.register_transient(handler, handler)
         return self
 
@@ -120,14 +119,14 @@ class Mediator:
         self,
         message: type[Query[Any]],
         handler: type[Any],
-    ) -> "Mediator":
+    ) -> Mediator:
         if message in self._query_handlers:
             raise MediatorError(
                 f"Query {message.__name__} already has handler "
                 f"{self._query_handlers[message].__name__}"
             )
         self._query_handlers[message] = handler
-        if handler not in self._container._providers:  # noqa: SLF001
+        if handler not in self._container._providers:
             self._container.register_transient(handler, handler)
         return self
 
@@ -135,9 +134,9 @@ class Mediator:
         self,
         event: type[DomainEvent],
         handler: type[Any],
-    ) -> "Mediator":
+    ) -> Mediator:
         self._event_handlers.setdefault(event, []).append(handler)
-        if handler not in self._container._providers:  # noqa: SLF001
+        if handler not in self._container._providers:
             self._container.register_transient(handler, handler)
         return self
 
@@ -145,9 +144,9 @@ class Mediator:
         self,
         event: type[IntegrationEvent],
         handler: type[Any],
-    ) -> "Mediator":
+    ) -> Mediator:
         self._integration_handlers.setdefault(event, []).append(handler)
-        if handler not in self._container._providers:  # noqa: SLF001
+        if handler not in self._container._providers:
             self._container.register_transient(handler, handler)
         return self
 
@@ -155,9 +154,9 @@ class Mediator:
         self,
         notification: type[Notification],
         handler: type[Any],
-    ) -> "Mediator":
+    ) -> Mediator:
         self._notification_handlers.setdefault(notification, []).append(handler)
-        if handler not in self._container._providers:  # noqa: SLF001
+        if handler not in self._container._providers:
             self._container.register_transient(handler, handler)
         return self
 
@@ -172,7 +171,7 @@ class Mediator:
         don't recurse into other modules to avoid following arbitrary import
         graphs) or classes directly. Returns the number of registrations.
         """
-        from qx.cqrs.decorators import HANDLER_MARKER, HandlerKind
+        from qx.cqrs.decorators import HANDLER_MARKER, HandlerKind  # noqa: PLC0415
 
         n = 0
         seen: set[int] = set()
@@ -188,15 +187,15 @@ class Mediator:
             kind: HandlerKind = meta.kind
             target: type = meta.target
             if kind == "command":
-                self.register_command(target, obj)  # type: ignore[arg-type]
+                self.register_command(target, obj)
             elif kind == "query":
-                self.register_query(target, obj)  # type: ignore[arg-type]
+                self.register_query(target, obj)
             elif kind == "event":
-                self.register_event(target, obj)  # type: ignore[arg-type]
+                self.register_event(target, obj)
             elif kind == "integration":
-                self.register_integration(target, obj)  # type: ignore[arg-type]
+                self.register_integration(target, obj)
             elif kind == "notification":
-                self.register_notification(target, obj)  # type: ignore[arg-type]
+                self.register_notification(target, obj)
             else:
                 raise MediatorError(f"Unknown handler kind: {kind!r}")
             n += 1
@@ -249,9 +248,9 @@ class Mediator:
         return registered
 
     @staticmethod
-    def _inspect_handler(cls: type[Any]) -> tuple[str | None, Any]:
+    def _inspect_handler(handler_cls: type[Any]) -> tuple[str | None, Any]:
         """Walk ``__orig_bases__`` to find the handler protocol the class implements."""
-        for base in getattr(cls, "__orig_bases__", ()):
+        for base in getattr(handler_cls, "__orig_bases__", ()):
             origin = get_origin(base)
             if origin is None:
                 continue
@@ -295,9 +294,7 @@ class Mediator:
                 scope=scope,
                 kind="query",
             )
-        raise MediatorError(
-            f"send() requires a Command or Query, got {type(message).__name__}"
-        )
+        raise MediatorError(f"send() requires a Command or Query, got {type(message).__name__}")
 
     async def _dispatch_request(
         self,
@@ -311,13 +308,11 @@ class Mediator:
         msg_type = type(message)
         handler_type = registry.get(msg_type)
         if handler_type is None:
-            raise MediatorError(
-                f"No {kind} handler registered for {msg_type.__name__}"
-            )
+            raise MediatorError(f"No {kind} handler registered for {msg_type.__name__}")
 
         async def terminal(m: Any) -> Result[Any]:
             handler = await self._container.resolve(handler_type, scope=scope)
-            return await handler.handle(m)
+            return await handler.handle(m)  # type: ignore[no-any-return]
 
         execute = compose(behaviors, terminal)
         return await execute(message)
@@ -345,7 +340,7 @@ class Mediator:
                 handler = await self._container.resolve(ht, scope=scope)
                 try:
                     await handler.handle(event)
-                except BaseException as exc:  # noqa: BLE001
+                except BaseException as exc:
                     errors.append(exc)
             if errors:
                 raise BaseExceptionGroup(
@@ -355,14 +350,14 @@ class Mediator:
             return
 
         if isinstance(event, Notification):
-            import logging
+            import logging  # noqa: PLC0415
 
             log = logging.getLogger("qx.cqrs.notification")
             for ht in self._notification_handlers.get(type(event), []):
                 try:
                     handler = await self._container.resolve(ht, scope=scope)
                     await handler.handle(event)
-                except BaseException as exc:  # noqa: BLE001
+                except BaseException as exc:
                     log.warning(
                         "notification handler %s failed for %s: %s",
                         ht.__name__,
@@ -388,9 +383,7 @@ class Mediator:
         """
         handlers = self._integration_handlers.get(type(event), [])
         if not handlers:
-            raise MediatorError(
-                f"No integration handler registered for {type(event).__name__}"
-            )
+            raise MediatorError(f"No integration handler registered for {type(event).__name__}")
         for ht in handlers:
             handler = await self._container.resolve(ht, scope=scope)
             await handler.handle(event)

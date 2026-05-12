@@ -14,12 +14,12 @@ from qx.search.repository import SearchHit, SearchQuery, SearchRepository
 __version__ = "0.1.0"
 
 __all__ = [
-    "SearchSettings",
-    "create_search_client",
-    "SearchRepository",
-    "SearchQuery",
     "SearchHit",
-    "ensure_index",
-    "drop_index",
+    "SearchQuery",
+    "SearchRepository",
+    "SearchSettings",
     "__version__",
+    "create_search_client",
+    "drop_index",
+    "ensure_index",
 ]

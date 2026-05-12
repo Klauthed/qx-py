@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
-from rich.console import Console
-
 from qx.cli.templates import preview_tree, render_tree
+from rich.console import Console
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
@@ -16,8 +15,8 @@ console = Console()
 @app.command()
 def service(
     name: str = typer.Argument(..., help="Service name (kebab-case)."),
-    target: Path = typer.Option(
-        Path.cwd(),
+    target: Path = typer.Option(  # noqa: B008
+        Path.cwd(),  # noqa: B008
         "--target",
         "-t",
         help="Directory to create the project in.",
@@ -38,10 +37,9 @@ def service(
         "service_pkg_path": pkg_name.replace("_", "/"),
     }
     dest = target / context["service_kebab"]
-    if dest.exists() and not force:
-        if any(dest.iterdir()):
-            console.print(f"[red]error[/red] {dest} exists and is not empty (use --force to overwrite)")
-            raise typer.Exit(1)
+    if dest.exists() and not force and any(dest.iterdir()):
+        console.print(f"[red]error[/red] {dest} exists and is not empty (use --force to overwrite)")
+        raise typer.Exit(1)
     dest.mkdir(parents=True, exist_ok=True)
 
     files = render_tree(
@@ -64,7 +62,7 @@ def service(
 
 
 def _snake(s: str) -> str:
-    import re
+    import re  # noqa: PLC0415
 
     s = re.sub(r"[\s\-]+", "_", s.strip())
     return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s).lower()

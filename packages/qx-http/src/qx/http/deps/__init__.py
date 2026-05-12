@@ -5,7 +5,7 @@ bridge so handlers can take Qx-managed services without explicit wiring:
 
     async def create_user(
         cmd: CreateUserCommand,
-        mediator: Mediator = Inject(Mediator),
+        mediator: Mediator = Inject(Mediator),  # noqa: B008
     ):
         result = await mediator.send(cmd)
         return unwrap(result)
@@ -20,15 +20,17 @@ failure envelope with the right status code.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from typing import Annotated, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from fastapi import Depends, FastAPI, Request
 
-from qx.core import Result
-from qx.di import Container, Scope
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
-__all__ = ["Inject", "get_container", "scope_dep", "unwrap", "attach_container"]
+    from qx.core import Result
+    from qx.di import Container, Scope
+
+__all__ = ["Inject", "attach_container", "get_container", "scope_dep", "unwrap"]
 
 T = TypeVar("T")
 
@@ -47,42 +49,42 @@ def get_container(request: Request) -> Container:
         raise RuntimeError(
             "No container attached to the app. Call attach_container(app, container) at startup."
         )
-    return container
+    return cast("Container", container)
 
 
 async def scope_dep(
-    container: Container = Depends(get_container),
+    container: Container = Depends(get_container),  # noqa: B008
 ) -> AsyncIterator[Scope]:
     """Yield a per-request DI scope. Closed automatically on response.
 
     Use as a dependency::
 
-        async def endpoint(scope: Scope = Depends(scope_dep)):
+        async def endpoint(scope: Scope = Depends(scope_dep)):  # noqa: B008
             ...
     """
     async with container.scope("http") as scope:
         yield scope
 
 
-def Inject(key: type[T]) -> Any:  # noqa: N802 — intentional alias for FastAPI Depends style
+def Inject[T](key: type[T]) -> Any:  # noqa: N802 — intentional alias for FastAPI Depends style
     """Resolve ``key`` from the DI container inside the request scope.
 
     Usage::
 
-        async def handler(repo: UserRepository = Inject(UserRepository)):
+        async def handler(repo: UserRepository = Inject(UserRepository)):  # noqa: B008
             ...
     """
 
     async def resolver(
-        container: Container = Depends(get_container),
-        scope: Scope = Depends(scope_dep),
+        container: Container = Depends(get_container),  # noqa: B008
+        scope: Scope = Depends(scope_dep),  # noqa: B008
     ) -> T:
         return await container.resolve(key, scope=scope)
 
     return Depends(resolver)
 
 
-def unwrap(result: Result[T]) -> T:
+def unwrap[T](result: Result[T]) -> T:
     """Return the success value or raise the error as an exception.
 
     The framework's exception handlers translate the exception into a failure

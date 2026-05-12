@@ -26,10 +26,8 @@ AND published_at IS NULL` without parsing JSON.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
-from datetime import UTC, datetime
-from typing import Any, Protocol, runtime_checkable
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from uuid import uuid4
 
 from sqlalchemy import (
     Column,
@@ -41,16 +39,20 @@ from sqlalchemy import (
     Table,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
-from qx.core import IntegrationEvent, utcnow
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from qx.core import IntegrationEvent
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = [
+    "OUTBOX_TABLE_NAME",
+    "DefaultOutboxRecorder",
     "OutboxRecorder",
     "include_outbox_table",
-    "DefaultOutboxRecorder",
-    "OUTBOX_TABLE_NAME",
 ]
 
 

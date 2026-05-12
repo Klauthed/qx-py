@@ -18,18 +18,19 @@ it is safe to place them on a shared pipeline.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-
-from qx.cqrs.messages import Command, Query
-from qx.cqrs.pipeline import Behavior, Next  # noqa: F401 (re-exported for convenience)
 from qx.core import Result, current_context
-from qx.observability.metrics import Metrics
+from qx.cqrs.messages import Command, Query
+from qx.cqrs.pipeline import Behavior  # noqa: F401 (re-exported for convenience)
 from qx.observability.tracing import get_tracer
 
-__all__ = ["TracingBehavior", "MetricsBehavior"]
+if TYPE_CHECKING:
+    from qx.cqrs.pipeline import Next
+    from qx.observability.metrics import Metrics
+
+__all__ = ["MetricsBehavior", "TracingBehavior"]
 
 
 class TracingBehavior:
@@ -77,7 +78,7 @@ class TracingBehavior:
         with tracer.start_as_current_span(span_name, attributes=attrs) as span:
             try:
                 result = await next_(message)
-            except BaseException as exc:  # noqa: BLE001
+            except BaseException as exc:
                 span.record_exception(exc)
                 span.set_status(Status(StatusCode.ERROR, description=str(exc)))
                 raise

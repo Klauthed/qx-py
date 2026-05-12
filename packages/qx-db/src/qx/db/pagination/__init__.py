@@ -13,14 +13,17 @@ from __future__ import annotations
 
 import base64
 import json
-from collections.abc import Sequence
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from qx.core import CursorPage, CursorPagination
-from qx.core.types.pagination import Sort
+from qx.core import CursorPage
 
-__all__ = ["encode_cursor", "decode_cursor", "build_cursor_page"]
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from qx.core.types.pagination import Sort
+
+__all__ = ["build_cursor_page", "decode_cursor", "encode_cursor"]
 
 
 def encode_cursor(values: dict[str, Any]) -> str:
@@ -31,7 +34,7 @@ def encode_cursor(values: dict[str, Any]) -> str:
 def decode_cursor(cursor: str) -> dict[str, Any]:
     pad = "=" * (-len(cursor) % 4)
     raw = base64.urlsafe_b64decode(cursor + pad).decode()
-    return json.loads(raw)
+    return json.loads(raw)  # type: ignore[no-any-return]
 
 
 def _serialize(o: Any) -> Any:

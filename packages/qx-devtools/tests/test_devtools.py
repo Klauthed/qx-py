@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qx.devtools import (
     EDITORCONFIG,
@@ -11,6 +11,9 @@ from qx.devtools import (
     RUFF_CONFIG,
     write_configs,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_constants_present() -> None:
@@ -43,7 +46,5 @@ def test_write_configs_overwrite_flag(tmp_path: Path) -> None:
 
 
 def test_write_configs_selective(tmp_path: Path) -> None:
-    written = write_configs(
-        tmp_path, ruff=True, mypy=False, pre_commit=False, editorconfig=False
-    )
+    written = write_configs(tmp_path, ruff=True, mypy=False, pre_commit=False, editorconfig=False)
     assert {p.name for p in written} == {"ruff.toml"}

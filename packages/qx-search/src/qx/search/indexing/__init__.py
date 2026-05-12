@@ -14,11 +14,12 @@ Production deployments should treat these as glue, not policy.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from opensearchpy import AsyncOpenSearch
+if TYPE_CHECKING:
+    from opensearchpy import AsyncOpenSearch
 
-__all__ = ["ensure_index", "drop_index"]
+__all__ = ["drop_index", "ensure_index"]
 
 
 async def ensure_index(

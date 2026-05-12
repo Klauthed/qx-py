@@ -8,6 +8,9 @@ One-call setup for typical services::
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from qx.observability.behaviors import MetricsBehavior, TracingBehavior
 from qx.observability.health import (
     AggregateResult,
     CheckResult,
@@ -25,7 +28,6 @@ from qx.observability.metrics import (
     default_metrics,
     render_metrics,
 )
-from prometheus_client import CollectorRegistry  # for setup_observability typing
 from qx.observability.tracing import (
     configure_tracing,
     extract_context,
@@ -34,8 +36,9 @@ from qx.observability.tracing import (
     trace_span,
 )
 
-from qx.observability.behaviors import MetricsBehavior, TracingBehavior
-from qx.core import QxSettings
+if TYPE_CHECKING:
+    from prometheus_client import CollectorRegistry
+    from qx.core import QxSettings
 
 __version__ = "0.1.0"
 
@@ -45,7 +48,7 @@ def setup_observability(
     *,
     otlp_endpoint: str | None = None,
     console_traces: bool = False,
-    metrics_registry: "CollectorRegistry | None" = None,
+    metrics_registry: CollectorRegistry | None = None,
 ) -> tuple[Metrics, HealthRegistry]:
     """One-call setup: configure logging + tracing, return metrics + health bundles.
 
@@ -67,24 +70,24 @@ def setup_observability(
 
 
 __all__ = [
-    "setup_observability",
+    "CONTENT_TYPE_LATEST",
+    "AggregateResult",
+    "CheckResult",
+    "HealthRegistry",
+    "HealthStatus",
+    "Metrics",
+    "MetricsBehavior",
+    "TracingBehavior",
+    "__version__",
     "configure_logging",
     "configure_tracing",
     "context_processor",
+    "default_metrics",
+    "extract_context",
     "get_logger",
     "get_tracer",
-    "trace_span",
     "inject_context",
-    "extract_context",
-    "Metrics",
-    "default_metrics",
     "render_metrics",
-    "CONTENT_TYPE_LATEST",
-    "HealthRegistry",
-    "HealthStatus",
-    "CheckResult",
-    "AggregateResult",
-    "TracingBehavior",
-    "MetricsBehavior",
-    "__version__",
+    "setup_observability",
+    "trace_span",
 ]

@@ -14,7 +14,7 @@ no ``Mapped`` on entities). Reasons:
   domain/infrastructure boundary.
 
 The trade-off: a small amount of boilerplate per aggregate in ``mapping.py``
-files declaring ``Table`` + ``registry.map_imperatively(Entity, table)``. Worth it.
+files declaring ```` + ``registry.map_imperatively(Entity, table)``. Worth it.
 
 This module supplies the framework-level ``mapping_registry()`` and a few
 common column types so services stay consistent.
@@ -22,26 +22,27 @@ common column types so services stay consistent.
 
 from __future__ import annotations
 
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     Column,
     DateTime,
     Integer,
     MetaData,
-    String,
-    Table,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import registry as sa_registry
 
+if TYPE_CHECKING:
+    from uuid import UUID
+
 __all__ = [
-    "make_registry",
+    "jsonb_column",
     "make_metadata",
+    "make_registry",
     "standard_audit_columns",
     "uuid_column",
-    "jsonb_column",
 ]
 
 
@@ -78,11 +79,11 @@ def standard_audit_columns(
 
     Use in every aggregate table::
 
-        users = Table(
+        users =(
             "users",
             metadata,
             Column("id", PG_UUID(as_uuid=True), primary_key=True),
-            Column("email", String(255), nullable=False, unique=True),
+            Column("email"(255), nullable=False, unique=True),
             *standard_audit_columns(),
         )
     """

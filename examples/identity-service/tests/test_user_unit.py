@@ -10,22 +10,11 @@ Integration tests against real infrastructure live in
 from __future__ import annotations
 
 from typing import Any
-from uuid import uuid4
 
 import pytest
-
-from qx.core import Identifier
-from qx.testing import MediatorStub, RepositoryStub
-
-from identity_service.application.commands.create_user import (
-    CreateUserCommand,
-    CreateUserHandler,
-)
 from identity_service.domain.aggregates.user import (
     User,
-    UserRegisteredIntegration,
 )
-
 
 # ---- Domain ----
 
@@ -83,7 +72,7 @@ class _FakeUoW:
         self.committed = False
         self.session = None  # CreateUserHandler constructs its own repo from session
 
-    async def __aenter__(self) -> "_FakeUoW":
+    async def __aenter__(self) -> _FakeUoW:
         return self
 
     async def __aexit__(self, *_: Any) -> None:
