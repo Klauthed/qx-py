@@ -44,9 +44,8 @@ jobs:
             echo "→ $(basename "$f")"
             uvx twine upload \
               --repository-url "https://upload.pkg.github.com/${REPO_OWNER}/" \
-              --skip-existing \
               "$f" \
-              || echo "  ⚠ skipped (may already exist)"
+              || echo "  ⚠ already exists or upload failed — continuing"
           done
 
       - name: Summary

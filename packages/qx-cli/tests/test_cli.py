@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import os
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -37,7 +38,6 @@ def test_new_service_renders_valid_python(tmp_path: Path) -> None:
     assert (project / "Dockerfile").exists()
     assert (project / "tests" / "test_smoke.py").exists()
 
-    # Every generated .py must parse cleanly.
     for py_file in project.rglob("*.py"):
         text = py_file.read_text()
         try:
@@ -66,7 +66,7 @@ def test_new_service_generates_lint_clean_python(tmp_path: Path) -> None:
 # ---- qx generate ----
 
 
-def _scaffold_service(tmp_path: Path, name: str = "my-service") -> "Path":
+def _scaffold_service(tmp_path: Path, name: str = "my-service") -> Path:
     result = runner.invoke(app, ["new", "service", name, "--target", str(tmp_path)])
     assert result.exit_code == 0, result.stdout
     return tmp_path / name
@@ -74,14 +74,6 @@ def _scaffold_service(tmp_path: Path, name: str = "my-service") -> "Path":
 
 def test_generate_command_renders_valid_python(tmp_path: Path) -> None:
     project = _scaffold_service(tmp_path)
-    result = runner.invoke(
-        app,
-        ["generate", "command", "CreateOrder", "--aggregate", "Order"],
-        catch_exceptions=False,
-    )
-    # generate resolves from cwd; we need to cd into the service dir
-    import os
-
     old = os.getcwd()
     try:
         os.chdir(project)
@@ -96,8 +88,6 @@ def test_generate_command_renders_valid_python(tmp_path: Path) -> None:
 
 def test_generate_query_renders_valid_python(tmp_path: Path) -> None:
     project = _scaffold_service(tmp_path)
-    import os
-
     old = os.getcwd()
     try:
         os.chdir(project)
@@ -112,8 +102,6 @@ def test_generate_query_renders_valid_python(tmp_path: Path) -> None:
 
 def test_generate_event_renders_valid_python(tmp_path: Path) -> None:
     project = _scaffold_service(tmp_path)
-    import os
-
     old = os.getcwd()
     try:
         os.chdir(project)
@@ -128,8 +116,6 @@ def test_generate_event_renders_valid_python(tmp_path: Path) -> None:
 
 def test_generate_endpoint_renders_valid_python(tmp_path: Path) -> None:
     project = _scaffold_service(tmp_path)
-    import os
-
     old = os.getcwd()
     try:
         os.chdir(project)
@@ -159,15 +145,12 @@ def test_new_service_refuses_nonempty_dir_without_force(tmp_path: Path) -> None:
 
 def test_doctor_runs_without_error(tmp_path: Path) -> None:
     result = runner.invoke(app, ["doctor"])
-    # Exit code may be 1 if some tools are absent in CI; the command itself must not crash.
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert "qx doctor" in result.stdout
 
 
 def test_generate_aggregate_renders_valid_python(tmp_path: Path) -> None:
     project = _scaffold_service(tmp_path)
-    import os
-
     old = os.getcwd()
     try:
         os.chdir(project)
