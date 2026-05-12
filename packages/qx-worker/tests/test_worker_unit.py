@@ -240,7 +240,7 @@ async def test_run_marks_started_and_stopped() -> None:
 
     consumer = MagicMock()
 
-    async def _fetch_timeout(n, timeout):
+    async def _fetch_timeout(n, timeout):  # noqa: ASYNC109
         # yield to the event loop before raising so _stop_soon() can run
         await asyncio.sleep(0)
         raise TimeoutError
@@ -288,7 +288,7 @@ async def test_run_drains_inflight_before_exit() -> None:
     consumer = MagicMock()
     fetch_calls = 0
 
-    async def _fetch(n, timeout):
+    async def _fetch(n, timeout):  # noqa: ASYNC109
         nonlocal fetch_calls
         fetch_calls += 1
         if fetch_calls == 1:
