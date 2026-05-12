@@ -13,9 +13,9 @@ if [[ -z "$NEW_VERSION" ]]; then
   exit 1
 fi
 
-# Validate semver format
-if ! [[ "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$ ]]; then
-  echo "ERROR: '$NEW_VERSION' is not a valid semver string" >&2
+# Validate PEP 440 version format (e.g. 1.2.3, 1.2.3a1, 1.2.3b2, 1.2.3rc1, 1.2.3.post1)
+if ! [[ "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.?(a|b|rc|post|dev)[0-9]+)?$ ]]; then
+  echo "ERROR: '$NEW_VERSION' is not a valid PEP 440 version string" >&2
   exit 1
 fi
 

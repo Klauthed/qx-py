@@ -298,4 +298,4 @@ For pre-release tags (`v0.2.0a1`, `v0.2.0b1`), route to TestPyPI instead by chec
 
 **`Dependency not found` on TestPyPI** — Use `--extra-index-url https://pypi.org/simple/` when installing from TestPyPI. Third-party deps only live on PyPI.
 
-**Build fails with `package not found in workspace`** — Ensure you run scripts from the repo root (`qx-python/`), not from inside a package directory.
+**Build fails with `package not found in workspace`** — Ensure you run scripts from the repo root (`qx-py/`), not from inside a package directory.
