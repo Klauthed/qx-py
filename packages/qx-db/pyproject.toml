@@ -2,6 +2,7 @@
 name = "qx-db"
 version = "0.1.0"
 description = "Qx database layer: SQLAlchemy 2 async, repositories, unit of work, transactional outbox"
+readme = "README.md"
 requires-python = ">=3.14"
 license = { text = "MIT" }
 authors = [{ name = "Qx Engineering" }]

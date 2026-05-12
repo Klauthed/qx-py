@@ -2,6 +2,7 @@
 name = "qx-cli"
 version = "0.1.0"
 description = "Qx CLI: scaffolding, code generation, local dev orchestration"
+readme = "README.md"
 requires-python = ">=3.14"
 license = { text = "MIT" }
 authors = [{ name = "Qx Engineering" }]
