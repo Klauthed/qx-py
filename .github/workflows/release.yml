@@ -33,17 +33,32 @@ jobs:
       - name: Build packages
         run: ./scripts/build.sh --clean
 
-      # Trusted Publisher registered at https://pypi.org/manage/account/publishing/
-      # owner=klauthed  repo=qx-py  workflow=release.yml  environment=pypi
-      #
-      # FIRST-TIME ONLY: OIDC cannot create new projects. For the initial v0.1.0
-      # upload, set PYPI_API_TOKEN in the "pypi" GitHub environment. After packages
-      # are registered on PyPI, delete the secret and OIDC takes over automatically.
+      # Upload each package individually with --skip-existing so that:
+      #   - Partial runs (e.g. hit by PyPI's new-project rate limit) are safely retried
+      #   - Already-published packages are skipped on re-runs
+      # FIRST-TIME ONLY: set PYPI_API_TOKEN (account-wide) in the "pypi" environment.
+      # After all projects are registered, delete the secret — OIDC takes over.
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
-          password: ${{ secrets.PYPI_API_TOKEN }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          uploaded=0
+          failed=()
+          for f in dist/*.whl dist/*.tar.gz; do
+            [[ -f "$f" ]] || continue
+            if uvx twine upload --skip-existing "$f"; then
+              (( uploaded++ )) || true
+            else
+              failed+=("$(basename "$f")")
+            fi
+          done
+          echo ""
+          echo "Uploaded: $uploaded files"
+          if [[ ${#failed[@]} -gt 0 ]]; then
+            echo "Failed: ${failed[*]}"
+            exit 1
+          fi
 
       - name: Create GitHub release
         env:
