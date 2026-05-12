@@ -42,23 +42,70 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        shell: bash
         run: |
+          set -eo pipefail
+
           uploaded=0
+          skipped=0
           failed=()
-          for f in dist/*.whl dist/*.tar.gz; do
-            [[ -f "$f" ]] || continue
-            if uvx twine upload --skip-existing "$f"; then
-              (( uploaded++ )) || true
-            else
-              failed+=("$(basename "$f")")
+          
+          # Group artifacts by package base name
+          mapfile -t packages < <(
+            find dist -name "*.whl" \
+              | sed 's/-[0-9].*//' \
+              | xargs -n1 basename \
+              | sort -u
+          )
+
+          for pkg in "${packages[@]}"; do
+            echo ""
+            echo "========================================="
+            echo "Publishing package: $pkg"
+            echo "========================================="
+
+            artifacts=(dist/${pkg}-*)
+
+            success=0
+
+            for attempt in 1 2 3 4 5; do
+              echo "Attempt $attempt..."
+
+              if uvx twine upload \
+                --skip-existing \
+                "${artifacts[@]}"; then
+
+                success=1
+                ((uploaded++)) || true
+                break
+              fi
+
+              sleep_time=$((attempt * 30))
+
+              echo "Upload failed. Sleeping ${sleep_time}s..."
+              sleep "$sleep_time"
+            done
+
+            if [[ $success -eq 0 ]]; then
+              failed+=("$pkg")
             fi
+
+            # Important: avoid PyPI throttling
+            sleep 15
           done
+
           echo ""
-          echo "Uploaded: $uploaded files"
+          echo "========================================="
+          echo "Upload Summary"
+          echo "========================================="
+          echo "Uploaded packages: $uploaded"
+
           if [[ ${#failed[@]} -gt 0 ]]; then
-            echo "Failed: ${failed[*]}"
+            echo "Failed packages:"
+            printf ' - %s\n' "${failed[@]}"
             exit 1
           fi
+
 
       - name: Create GitHub release
         env:
