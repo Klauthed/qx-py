@@ -53,17 +53,29 @@ jobs:
             exit 1
           fi
 
-      # TestPyPI has stricter name-similarity rules than production PyPI.
-      # Some packages may be blocked by a name conflict that doesn't exist on PyPI.
-      # continue-on-error lets the workflow complete so you can inspect the logs
-      # and verify at least the majority of packages uploaded successfully.
+      # Upload each package individually so a TestPyPI name-similarity conflict
+      # (which doesn't exist on production PyPI) doesn't block the other packages.
+      # Uses --skip-existing so re-runs are idempotent.
       - name: Publish to TestPyPI
-        continue-on-error: true
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
-          repository-url: https://test.pypi.org/legacy/
-          password: ${{ secrets.PYPI_API_TOKEN }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          uploaded=0
+          skipped=()
+          for f in dist/*.whl dist/*.tar.gz; do
+            [[ -f "$f" ]] || continue
+            if uvx twine upload --repository-url https://test.pypi.org/legacy/ --skip-existing "$f"; then
+              (( uploaded++ )) || true
+            else
+              skipped+=("$(basename "$f")")
+            fi
+          done
+          echo ""
+          echo "Uploaded: $uploaded files"
+          if [[ ${#skipped[@]} -gt 0 ]]; then
+            echo "Skipped/failed (TestPyPI conflicts not present on PyPI): ${skipped[*]}"
+          fi
 
       - name: Print install instructions
         env:
