@@ -1,0 +1,74 @@
+name: Staging (TestPyPI)
+
+# Trigger manually from the GitHub Actions UI.
+# Use this to verify packages on TestPyPI before cutting a real release.
+#
+# Workflow:
+#   1. Run this workflow and confirm packages install correctly from TestPyPI.
+#   2. Once satisfied, push a vX.Y.Z tag to trigger the release.yml workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to stage (must match version in pyproject.toml files)"
+        required: true
+        default: "0.1.0"
+
+jobs:
+  stage:
+    name: Publish to TestPyPI
+    runs-on: ubuntu-latest
+
+    environment: testpypi
+
+    # Required for Trusted Publisher OIDC.
+    # Register at https://test.pypi.org/manage/account/publishing/ with:
+    #   owner=klauthed  repo=qx-py  workflow=staging.yml  environment=testpypi
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Pre-publish checks
+        run: ./scripts/check.sh
+
+      - name: Build packages
+        run: ./scripts/build.sh --clean
+
+      - name: Verify version matches input
+        env:
+          EXPECTED: ${{ inputs.version }}
+        run: |
+          actual=$(grep '^version = ' packages/qx-core/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          if [[ "$actual" != "$EXPECTED" ]]; then
+            echo "Version mismatch: pyproject.toml has '$actual', expected '$EXPECTED'" >&2
+            exit 1
+          fi
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Print install instructions
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo ""
+          echo "Packages staged to TestPyPI. Verify with:"
+          echo ""
+          echo "  uv pip install --index-url https://test.pypi.org/simple/ \\"
+          echo "    --extra-index-url https://pypi.org/simple/ \\"
+          echo "    qx-core==$VERSION qx-cqrs==$VERSION qx-http==$VERSION"
+          echo ""
+          echo "Once verified, publish to PyPI by pushing a tag:"
+          echo "  git tag v$VERSION && git push origin v$VERSION"
