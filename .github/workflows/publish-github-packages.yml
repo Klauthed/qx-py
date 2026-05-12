@@ -1,0 +1,63 @@
+name: Publish to GitHub Packages
+
+on:
+  push:
+    tags: ["v[0-9]*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and publish (e.g. v0.1.0). Defaults to latest tag."
+        required: false
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  publish:
+    name: Build & publish to GitHub Packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install deps
+        run: uv sync --frozen
+
+      - name: Build all packages
+        run: ./scripts/build.sh --clean
+
+      - name: Publish to GitHub Packages
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          for f in dist/*.whl dist/*.tar.gz; do
+            echo "→ $(basename "$f")"
+            uvx twine upload \
+              --repository-url "https://upload.pkg.github.com/${REPO_OWNER}/" \
+              --skip-existing \
+              "$f" \
+              || echo "  ⚠ skipped (may already exist)"
+          done
+
+      - name: Summary
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          echo "## GitHub Packages published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Install with uv — add to \`pyproject.toml\`:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```toml' >> "$GITHUB_STEP_SUMMARY"
+          echo "[[tool.uv.index]]" >> "$GITHUB_STEP_SUMMARY"
+          echo 'name = "klauthed"' >> "$GITHUB_STEP_SUMMARY"
+          echo "url = \"https://pip.pkg.github.com/${REPO_OWNER}/\"" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

@@ -21,14 +21,9 @@ from qx.db import (
     make_session_factory,
 )
 from qx.di import Container
-from qx.events import (
-    EventRegistry,
-    MediatorEventDispatcher,
-    NatsSettings,
-    create_nats_connection,
-)
+from qx.events import EventRegistry, MediatorEventDispatcher
 from qx.http import setup_qx_app
-from qx.observability import HealthRegistry, Metrics, setup_observability
+from qx.observability import setup_observability
 
 from {{ service_pkg }}.application import register_handlers
 from {{ service_pkg }}.domain import register_events

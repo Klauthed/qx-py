@@ -2,6 +2,7 @@
 
 > A Spring-Boot-equivalent Python framework ecosystem for building production-grade backend services.
 
+[![CI](https://github.com/klauthed/qx-py/actions/workflows/ci.yml/badge.svg)](https://github.com/klauthed/qx-py/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.14-blue)](https://www.python.org/)
 [![uv](https://img.shields.io/badge/packaged%20with-uv-orange)](https://docs.astral.sh/uv/)

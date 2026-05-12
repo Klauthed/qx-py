@@ -13,7 +13,7 @@ from uuid import UUID  # noqa: TC003
 from pydantic import BaseModel
 from qx.core import ConflictError, Result
 from qx.cqrs import Command, command_handler
-from qx.db import SessionFactory, UnitOfWork  # noqa: TC002
+from qx.db import UnitOfWork  # noqa: TC002
 
 from identity_service.domain.aggregates.user import User
 from identity_service.infrastructure.persistence.user import UserRepository
@@ -34,9 +34,8 @@ class CreateUserCommand(Command[CreateUserDto]):
 
 @command_handler(CreateUserCommand)
 class CreateUserHandler:
-    def __init__(self, uow: UnitOfWork, sessions: SessionFactory) -> None:
+    def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
-        self._sessions = sessions
 
     async def handle(self, command: CreateUserCommand) -> Result[CreateUserDto]:
         async with self._uow:

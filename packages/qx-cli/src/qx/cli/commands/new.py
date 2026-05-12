@@ -55,7 +55,7 @@ def service(
         "\n[bold]Next steps:[/bold]\n"
         f"  cd {context['service_kebab']}\n"
         "  uv sync\n"
-        "  docker compose -f ../deploy/docker-compose.yaml up -d  # local Postgres/Redis/NATS\n"
+        "  qx dev up          # start Postgres · Redis · NATS · Grafana\n"
         "  uv run alembic upgrade head\n"
         "  uv run uvicorn " + f"{pkg_name}.main:app --reload\n"
     )

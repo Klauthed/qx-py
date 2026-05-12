@@ -10,6 +10,7 @@ Subcommands::
     qx generate event NAME         # add an integration event
     qx dev up                      # start docker-compose stack
     qx dev down                    # stop the stack
+    qx doctor                      # check dev environment health
     qx version                     # print framework version
 
 Invoke as ``qx`` once the package is installed; ``uv run qx ...``
@@ -19,7 +20,7 @@ during development.
 from __future__ import annotations
 
 import typer
-from qx.cli.commands import dev, generate, new
+from qx.cli.commands import dev, doctor, generate, new
 from rich.console import Console
 
 console = Console()
@@ -38,6 +39,7 @@ app.add_typer(
     help="Generate code into an existing service (aggregate, command, query, ...).",
 )
 app.add_typer(dev.app, name="dev", help="Local development orchestration.")
+app.add_typer(doctor.app, name="doctor", help="Check development environment health.")
 
 
 @app.command()

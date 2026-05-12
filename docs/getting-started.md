@@ -1,104 +1,115 @@
 # Getting Started
 
-Build your first qx service in under five minutes. We'll create a tiny
-service that exposes one HTTP endpoint, dispatches a command through the
-mediator, and writes to the outbox.
+Build your first qx service in under ten minutes using the CLI scaffold.
 
 ## Prerequisites
 
-- Python 3.12+
-- Docker (for local Postgres + NATS via `deploy/docker-compose.yaml`)
-- `uv` (recommended) or `pip`
+- Python 3.14+
+- [`uv`](https://docs.astral.sh/uv/) — package and project manager
+- Docker — for the local infrastructure stack (Postgres, Redis, NATS, Grafana)
 
-## 1. Create your service directory
-
-```bash
-mkdir hello-qx && cd hello-qx
-```
-
-Initialize a `pyproject.toml`:
-
-```toml
-[project]
-name = "hello-qx"
-version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = [
-    "qx-core",
-    "qx-di",
-    "qx-cqrs",
-    "qx-http",
-    "qx-observability",
-    "uvicorn[standard]>=0.32.0",
-]
-```
-
-(In a real workspace, you'd use the CLI: `qx new service hello-qx`.)
-
-## 2. Define a command and a handler
-
-```python
-# hello/application/commands.py
-from typing import ClassVar
-from qx.core import Result
-from qx.cqrs import Command, command_handler
-
-class GreetCommand(Command[str]):
-    name: str
-
-@command_handler(GreetCommand)
-class GreetHandler:
-    async def handle(self, cmd: GreetCommand) -> Result[str]:
-        if not cmd.name.strip():
-            from qx.core import ValidationError
-            return Result.failure(
-                ValidationError(code="name.empty", message="name is required")
-            )
-        return Result.success(f"hello, {cmd.name}")
-```
-
-## 3. Wire the service
-
-```python
-# hello/main.py
-from fastapi import FastAPI
-
-from qx.core import QxSettings
-from qx.cqrs import Mediator
-from qx.di import Container
-from qx.http import Inject, envelope_success, setup_qx_app, unwrap
-from qx.observability import setup_observability
-
-from hello.application import commands
-
-def make_app() -> FastAPI:
-    settings = QxSettings()
-    metrics, health = setup_observability(settings)
-
-    container = Container()
-    mediator = Mediator(container)
-    mediator.register_decorated(commands)  # walks the module, finds @command_handler classes
-    container.register_instance(Mediator, mediator)
-
-    app = setup_qx_app(container, settings, metrics=metrics, health=health)
-
-    @app.post("/greet")
-    async def greet(cmd: commands.GreetCommand, m: Mediator = Inject(Mediator)):
-        result = await m.send(cmd)
-        return envelope_success(unwrap(result))
-
-    return app
-
-app = make_app()
-```
-
-## 4. Run it
+Install `uv` if you don't have it:
 
 ```bash
-uv run uvicorn hello.main:app --reload
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Hit it:
+Verify your environment:
+
+```bash
+uv run qx doctor
+```
+
+## 1. Install the CLI
+
+```bash
+uv tool install qx-cli
+```
+
+Or, inside a workspace that already declares `qx-cli` as a dependency:
+
+```bash
+uv sync
+uv run qx version
+```
+
+## 2. Scaffold a service
+
+```bash
+qx new service hello-qx
+cd hello-qx
+uv sync
+```
+
+This generates a complete, runnable service skeleton:
+
+```
+hello-qx/
+├── src/hello_qx/
+│   ├── main.py                  # FastAPI app factory + DI wiring
+│   ├── application/             # Commands and queries go here
+│   ├── domain/                  # Aggregates and domain events
+│   ├── infrastructure/          # Repositories and persistence mappings
+│   └── presentation/routes/     # HTTP endpoints
+├── alembic/                     # Database migrations
+├── tests/
+├── Dockerfile
+└── pyproject.toml
+```
+
+## 3. Start the local stack
+
+```bash
+qx dev up
+```
+
+This starts Postgres, Redis, NATS JetStream, Prometheus, Grafana, and Tempo via Docker Compose. Wait for the health checks to pass (usually ~5 s), then run the service:
+
+```bash
+uv run uvicorn hello_qx.main:app --reload
+```
+
+The service starts on `http://localhost:8000`. Three endpoints are already live:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /healthz` | Liveness probe |
+| `GET /readyz` | Readiness probe |
+| `GET /metrics` | Prometheus metrics |
+
+## 4. Add a command
+
+```bash
+qx generate command CreateGreeting
+```
+
+This creates `src/hello_qx/application/commands/create_greeting.py` with a `CreateGreetingCommand` class and a `CreateGreetingHandler` stub. Fill in the handler:
+
+```python
+async def handle(self, command: CreateGreetingCommand) -> Result[CreateGreetingDto]:
+    if not command.name.strip():
+        return Result.failure(
+            ValidationError(code="name.empty", message="name is required")
+        )
+    return Result.success(CreateGreetingDto(message=f"hello, {command.name}"))
+```
+
+## 5. Add an endpoint
+
+```bash
+qx generate endpoint /greet --handler CreateGreeting
+```
+
+This generates `src/hello_qx/presentation/routes/create_greeting.py` — a FastAPI router that deserializes the request body, dispatches through the `Mediator`, and wraps the result in the standard envelope.
+
+Register the router in `main.py` (the scaffold wires this automatically if you regenerate; for existing services, add one line):
+
+```python
+from hello_qx.presentation.routes import create_greeting
+app.include_router(create_greeting.router)
+```
+
+## 6. Try it
 
 ```bash
 curl -X POST localhost:8000/greet \
@@ -106,12 +117,10 @@ curl -X POST localhost:8000/greet \
   -d '{"name": "ada"}'
 ```
 
-You should see:
-
 ```json
 {
   "success": true,
-  "data": "hello, ada",
+  "data": {"message": "hello, ada"},
   "error": null,
   "metadata": {
     "correlation_id": "...",
@@ -121,42 +130,50 @@ You should see:
 }
 ```
 
-The framework gave you, for free:
+Every response — success or failure — uses this envelope shape. Clients pattern-match on `error.code`, never on HTTP status text.
 
-- A correlation id that flows through logs and traces.
-- A standard envelope on every response, success or failure.
-- `/healthz`, `/readyz`, `/metrics` already mounted.
-- Structured logs in JSON (if `LOGGING__JSON_OUTPUT=true`).
-- A pipeline you can extend with behaviors (authz, retries, transactions).
-
-## 5. Try an error
+Error path:
 
 ```bash
-curl -X POST localhost:8000/greet -H 'Content-Type: application/json' -d '{"name": ""}'
+curl -X POST localhost:8000/greet \
+  -H 'Content-Type: application/json' \
+  -d '{"name": ""}'
 ```
 
 ```json
 {
   "success": false,
   "data": null,
-  "error": {
-    "code": "name.empty",
-    "message": "name is required",
-    "details": {}
-  },
-  "metadata": { "correlation_id": "..." }
+  "error": {"code": "name.empty", "message": "name is required", "details": {}},
+  "metadata": {"correlation_id": "..."}
 }
 ```
 
-400 Bad Request, envelope shape preserved, code is the framework's stable
-identifier. Clients can pattern-match on `error.code` without parsing the
-human-readable message.
+## 7. Add a domain aggregate (with database)
+
+```bash
+qx generate aggregate Greeting
+```
+
+This generates:
+- `src/hello_qx/domain/aggregates/greeting/` — aggregate root + domain events
+- `src/hello_qx/infrastructure/persistence/greeting/` — SQLAlchemy table mapping + repository
+- `alembic/versions/create_greeting.py` — migration stub (fill in columns, then `alembic upgrade head`)
+
+## What you get for free
+
+| Concern | How qx handles it |
+|---|---|
+| Request tracing | `correlation_id` injected at the FastAPI middleware layer, flows through logs and OTel spans |
+| Structured logging | `structlog` with JSON output in production (`LOG__JSON_OUTPUT=true`) |
+| Metrics | Prometheus counter + histogram per command/query, already in the pipeline |
+| Transactional outbox | `UnitOfWork.track(aggregate)` routes domain events to `qx_outbox_events` in the same DB transaction |
+| Idempotency | `IdempotencyBehavior` in the mediator pipeline; plug in `qx-cache` for the store |
+| Health probes | `/healthz` and `/readyz` wired by `setup_qx_app()` |
 
 ## Next steps
 
-- Add a Postgres repository: see `examples/identity-service`.
-- Add events: define an `IntegrationEvent`, record it on an aggregate, watch
-  the outbox fill up.
-- Add a worker: `examples/identity-service` includes one that consumes
-  `user.registered` events.
-- Read `architecture.md` for the why behind each piece.
+- **Full vertical slice** — see [`examples/identity-service/`](../examples/identity-service/) for a complete user-registration service: HTTP → Command → Aggregate → Repository → UnitOfWork → Outbox → Worker → Integration Event.
+- **Architecture deep-dive** — [`docs/architecture.md`](architecture.md) explains the layered design and every major decision.
+- **CQRS patterns** — [`docs/cqrs-guide.md`](cqrs-guide.md) covers commands vs. queries vs. events, pipeline ordering, and anti-patterns.
+- **Deployment** — [`docs/deployment.md`](deployment.md) covers local → Docker → Kubernetes → Helm.

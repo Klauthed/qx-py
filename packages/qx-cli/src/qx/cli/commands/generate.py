@@ -35,9 +35,9 @@ def _service_package(start: Path | None = None) -> tuple[Path, str]:
             pkg = name.replace("-", "_")
             # Validate the package directory actually exists
             if (candidate / "src" / pkg).exists():
-                return candidate / "src" / pkg, pkg
+                return candidate, pkg
             if (candidate / pkg).exists():
-                return candidate / pkg, pkg
+                return candidate, pkg
     raise typer.BadParameter("Could not locate a qx service from current directory.")
 
 
@@ -46,9 +46,15 @@ def aggregate(
     name: str = typer.Argument(..., help="Aggregate name (PascalCase, e.g. 'Invoice')."),
     force: bool = typer.Option(False, "--force", "-f"),
 ) -> None:
-    """Generate a new aggregate (domain entity + table mapping + repository)."""
+    """Generate a new aggregate (domain entity + table mapping + repository + migration stub)."""
+    import secrets  # noqa: PLC0415
+    from datetime import UTC, datetime  # noqa: PLC0415
+
     root, pkg = _service_package()
     context = _names(name, pkg)
+    context["revision_id"] = secrets.token_hex(6)
+    context["create_date"] = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    context["migration_name"] = f"create_{context['name_snake']}"
     files = render_tree(
         "qx.cli.scaffolds",
         "aggregate",
