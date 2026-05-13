@@ -1,19 +1,33 @@
 """Outbox relay worker.
 
-Single-instance background worker that drains the ``qx_outbox_events``
-table to the message broker. Architecture:
+Background worker that drains the ``qx_outbox_events`` table to the message
+broker. Architecture:
 
 1. Periodically (default every 500ms) take a small batch of unpublished rows
-   with ``SELECT ... FOR UPDATE SKIP LOCKED`` so multiple instances don't fight
-   over the same rows.
+   with ``SELECT ... FOR UPDATE SKIP LOCKED`` so concurrent relay instances
+   never claim the same row.
 2. For each row, publish to NATS JetStream and wait for the stream's ack.
 3. On success: mark ``published_at = now()``.
-4. On failure: increment ``attempts``, log, leave for retry. Exponential
-   back-off is applied implicitly by the poll loop — failed rows aren't
-   retried until the next batch.
+4. On failure: increment ``attempts``, log, leave for retry.
 
-Single-instance discipline: in production, run one relay per service.
-``DistributedLock`` is used to enforce that under multi-replica deployments.
+**HA sharding** — run N relay workers in parallel, each owning a hash-based
+shard of the outbox table (e.g., one per Kubernetes pod replica)::
+
+    # pod-0
+    relay = OutboxRelay(engine, publisher, shard_id=0, shard_count=3)
+
+    # pod-1
+    relay = OutboxRelay(engine, publisher, shard_id=1, shard_count=3)
+
+    # pod-2
+    relay = OutboxRelay(engine, publisher, shard_id=2, shard_count=3)
+
+Each relay adds ``ABS(HASHTEXT(id::text)::bigint) % shard_count = shard_id``
+to the batch query, so shards are disjoint with no coordinator overhead.
+
+**Single-instance mode** — the default (``shard_count=1``) omits the shard
+filter entirely and optionally uses a ``DistributedLock`` to guarantee a
+single active relay under multi-replica deployments.
 
 The relay is **separate** from the consumer worker (``qx-worker``) by
 design — relay is service-internal infrastructure; consumer runs the
@@ -53,22 +67,32 @@ class OutboxRelay:
         publisher: NatsPublisher,
         *,
         leader_lock: DistributedLock | None = None,
+        shard_id: int = 0,
+        shard_count: int = 1,
         table_name: str = OUTBOX_TABLE_NAME,
         batch_size: int = 100,
         poll_interval_seconds: float = 0.5,
         idle_poll_interval_seconds: float = 2.0,
         max_attempts: int = 10,
     ) -> None:
+        if shard_count < 1:
+            raise ValueError(f"shard_count must be >= 1, got {shard_count}")
+        if not (0 <= shard_id < shard_count):
+            raise ValueError(
+                f"shard_id must be in [0, shard_count), got shard_id={shard_id}, shard_count={shard_count}"
+            )
         self._engine = engine
         self._publisher = publisher
         self._lock = leader_lock
+        self._shard_id = shard_id
+        self._shard_count = shard_count
         self._table = table_name
         self._batch = batch_size
         self._poll = poll_interval_seconds
         self._idle_poll = idle_poll_interval_seconds
         self._max_attempts = max_attempts
         self._stop = asyncio.Event()
-        self._log = get_logger("qx.outbox-relay")
+        self._log = get_logger(f"qx.outbox-relay[{shard_id}/{shard_count}]")
 
     async def stop(self) -> None:
         self._stop.set()
@@ -105,10 +129,14 @@ class OutboxRelay:
             else:
                 await self._sleep(self._poll)
 
+    def _shard_clause(self) -> str:
+        if self._shard_count == 1:
+            return ""
+        # Cast to bigint before ABS to avoid int4 overflow on INT_MIN.
+        return "  AND ABS(HASHTEXT(id::text)::bigint) % :shard_count = :shard_id\n"
+
     async def _process_one_batch(self) -> int:
         async with self._engine.begin() as conn:
-            # Claim rows. SKIP LOCKED makes this safe under multi-instance
-            # (even though leader-lock is the primary defense).
             res = await conn.execute(
                 text(
                     f"""
@@ -117,12 +145,17 @@ class OutboxRelay:
                     FROM {self._table}
                     WHERE published_at IS NULL
                       AND attempts < :max_attempts
-                    ORDER BY occurred_at ASC
+                    {self._shard_clause()}ORDER BY occurred_at ASC
                     LIMIT :limit
                     FOR UPDATE SKIP LOCKED
                     """
                 ),
-                {"limit": self._batch, "max_attempts": self._max_attempts},
+                {
+                    "limit": self._batch,
+                    "max_attempts": self._max_attempts,
+                    "shard_count": self._shard_count,
+                    "shard_id": self._shard_id,
+                },
             )
             rows = list(res.mappings())
             if not rows:
