@@ -6,7 +6,7 @@ from qx.cache.client import Cache, CacheSettings, create_client
 from qx.cache.distributed_lock import DistributedLock, LockNotHeldError
 from qx.cache.idempotency import IdempotencyConflictError, IdempotencyStore
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "Cache",

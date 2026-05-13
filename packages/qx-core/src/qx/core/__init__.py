@@ -65,7 +65,7 @@ from qx.core.types.pagination import (
 )
 from qx.core.utils.time import utcnow
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "AggregateRoot",

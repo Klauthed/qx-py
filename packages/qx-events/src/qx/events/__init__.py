@@ -12,7 +12,7 @@ from qx.events.nats import (
 from qx.events.outbox_relay import OutboxRelay
 from qx.events.registry import EventRegistry, EventTypeNotRegistered
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "EventRegistry",

@@ -10,7 +10,7 @@ from qx.grpc.interceptors import (
 )
 from qx.grpc.server import create_grpc_server
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "ExceptionInterceptor",

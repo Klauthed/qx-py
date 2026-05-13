@@ -1,6 +1,6 @@
 [project]
 name = "qx-cqrs"
-version = "0.1.0"
+version = "0.2.0"
 description = "Qx CQRS / Mediator: commands, queries, events, pipeline behaviors"
 readme = "README.md"
 requires-python = ">=3.14"

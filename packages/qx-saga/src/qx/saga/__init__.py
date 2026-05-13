@@ -58,7 +58,7 @@ from qx.saga.state import SagaState
 from qx.saga.store import SagaStore
 from qx.saga.table import SAGA_TABLE_NAME, include_saga_table
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "SAGA_TABLE_NAME",

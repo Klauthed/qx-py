@@ -16,7 +16,7 @@ from qx.auth.policy import (
 from qx.auth.rate_limit import TokenBucket, TokenBucketResult
 from qx.auth.rbac import Permission, Role
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     # Policy

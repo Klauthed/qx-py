@@ -6,7 +6,7 @@ from qx.worker.errors import PermanentWorkerError, TransientWorkerError
 from qx.worker.health import WorkerHealth
 from qx.worker.runtime import WorkerRuntime
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "PermanentWorkerError",
