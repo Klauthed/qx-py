@@ -40,7 +40,7 @@ class GetUserProfileHandler:
     async def handle(self, query: GetUserProfileQuery) -> Result[UserProfileDto]:
         async with self._uow:
             repo = UserRepository(self._uow.session)
-            result = await repo.find_by_id(query.user_id)
+            result = await repo.get(query.user_id)
             if result.is_failure:
                 return Result.failure(
                     NotFoundError(
