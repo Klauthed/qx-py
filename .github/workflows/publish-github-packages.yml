@@ -1,4 +1,14 @@
-name: Publish to GitHub Packages
+name: Publish to GitHub Releases
+
+# Builds all 21 qx-* packages and attaches the wheels + sdists as assets
+# to a GitHub Release, providing an installable distribution while PyPI
+# rate limits are in effect.
+#
+# Install after the release is created:
+#   pip install "qx-core @ https://github.com/Klauthed/qx-py/releases/download/v0.1.0/qx_core-0.1.0-py3-none-any.whl"
+#
+# Or directly from git (no release needed, always latest master):
+#   pip install "qx-core @ git+https://github.com/Klauthed/qx-py.git#subdirectory=packages/qx-core"
 
 on:
   push:
@@ -6,36 +16,35 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build and publish (e.g. v0.1.0). Leave blank to use latest tag."
+        description: "Release tag (e.g. v0.1.0). Creates a pre-release if the tag does not yet exist."
         required: false
+        default: "v0.1.0"
 
 permissions:
-  packages: write
-  contents: read
+  contents: write   # needed to create/update releases and upload assets
 
 jobs:
   publish:
-    name: Build & publish to GitHub Packages
+    name: Build & attach wheels to GitHub Release
     runs-on: ubuntu-latest
 
     steps:
-      - name: Resolve ref
-        id: ref
+      - name: Resolve tag
+        id: tag
         env:
           INPUT_TAG: ${{ github.event.inputs.tag }}
           GITHUB_REF: ${{ github.ref }}
         run: |
           if [[ -n "$INPUT_TAG" ]]; then
-            # Normalise: prepend v if missing (e.g. "0.1.0" → "v0.1.0")
             TAG="${INPUT_TAG#v}"
             echo "value=v${TAG}" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=${GITHUB_REF}" >> "$GITHUB_OUTPUT"
+            echo "value=v0.1.0" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.ref.outputs.value }}
 
       - uses: astral-sh/setup-uv@v4
         with:
@@ -46,37 +55,66 @@ jobs:
         run: uv sync --frozen
 
       - name: Build all packages
-        run: ./scripts/build.sh --clean
+        run: bash scripts/build.sh --clean
 
-      - name: Publish to GitHub Packages
+      - name: Create release if it doesn't exist
         env:
-          TWINE_USERNAME: ${{ github.actor }}
-          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          REPO_OWNER: ${{ github.repository_owner }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" &>/dev/null; then
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Qx $TAG" \
+              --notes "Pre-release distribution while PyPI rate limits are in effect.
+
+## Install
+
+\`\`\`bash
+# Single package (direct wheel URL)
+pip install \"qx-core @ https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/qx_core-0.1.0-py3-none-any.whl\"
+
+# Or install any package directly from git (always latest master)
+pip install \"qx-core @ git+https://github.com/${GITHUB_REPOSITORY}.git#subdirectory=packages/qx-core\"
+\`\`\`
+
+## All packages
+Replace \`qx-core\` with any of: qx-auth, qx-cache, qx-cli, qx-cqrs, qx-db, qx-devtools, qx-di, qx-events, qx-eventstore, qx-flags, qx-grpc, qx-http, qx-observability, qx-projections, qx-py, qx-regions, qx-saga, qx-search, qx-testing, qx-worker." \
+              --prerelease
+            echo "Created release $TAG"
+          else
+            echo "Release $TAG already exists — uploading assets"
+          fi
+
+      - name: Upload wheels and sdists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
           for f in dist/*.whl dist/*.tar.gz; do
             echo "→ $(basename "$f")"
-            uvx twine upload \
-              --repository-url "https://upload.pypi.pkg.github.com/${REPO_OWNER}/" \
-              "$f" \
-              || echo "  ⚠ skipped (already published or error)"
+            gh release upload "$TAG" "$f" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber \
+              && echo "  ✓ uploaded" \
+              || echo "  ⚠ skipped"
           done
 
-      - name: Summary
+      - name: Job summary
         env:
-          REPO_OWNER: ${{ github.repository_owner }}
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
-          echo "## GitHub Packages published" >> "$GITHUB_STEP_SUMMARY"
+          REPO="${{ github.repository }}"
+          echo "## Wheels attached to release $TAG" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Install with pip:" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Install a package (direct URL):**" >> "$GITHUB_STEP_SUMMARY"
           echo '```bash' >> "$GITHUB_STEP_SUMMARY"
-          echo "pip install qx-core --index-url https://pypi.pkg.github.com/${REPO_OWNER}/simple/" >> "$GITHUB_STEP_SUMMARY"
+          echo "pip install \"qx-core @ https://github.com/${REPO}/releases/download/${TAG}/qx_core-0.1.0-py3-none-any.whl\"" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Install with uv — add to \`pyproject.toml\`:" >> "$GITHUB_STEP_SUMMARY"
-          echo '```toml' >> "$GITHUB_STEP_SUMMARY"
-          echo "[[tool.uv.index]]" >> "$GITHUB_STEP_SUMMARY"
-          echo 'name = "klauthed"' >> "$GITHUB_STEP_SUMMARY"
-          echo "url = \"https://pypi.pkg.github.com/${REPO_OWNER}/simple/\"" >> "$GITHUB_STEP_SUMMARY"
-          echo "explicit = true" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Install from git (no release needed):**" >> "$GITHUB_STEP_SUMMARY"
+          echo '```bash' >> "$GITHUB_STEP_SUMMARY"
+          echo "pip install \"qx-core @ git+https://github.com/${REPO}.git#subdirectory=packages/qx-core\"" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Release page:** https://github.com/${REPO}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"
