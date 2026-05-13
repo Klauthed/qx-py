@@ -10,7 +10,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-
 from qx.core import QxSettings
 from qx.cqrs import ExceptionTranslationBehavior, LoggingBehavior, Mediator
 from qx.db import (
@@ -20,6 +19,7 @@ from qx.db import (
     create_engine,
     make_session_factory,
 )
+from qx.db.outbox import DefaultOutboxRecorder
 from qx.di import Container
 from qx.events import EventRegistry, MediatorEventDispatcher
 from qx.http import setup_qx_app
@@ -35,7 +35,7 @@ def build_app() -> FastAPI:
     metrics, health = setup_observability(settings)
     container = Container()
 
-    # ---- Settings + infrastructure singletons ----
+    # ---- Infrastructure singletons ----
     db_settings = DatabaseSettings()
     engine = create_engine(db_settings)
     session_factory = make_session_factory(engine)
@@ -49,19 +49,18 @@ def build_app() -> FastAPI:
     )
     container.register_instance(Mediator, mediator)
 
-    # ---- Event registry (integration event types this service knows about) ----
+    # ---- Event registry ----
     event_registry = EventRegistry()
     register_events(event_registry)
     container.register_instance(EventRegistry, event_registry)
 
-    # ---- UnitOfWork — scoped (per-request) ----
-    def _uow_factory() -> UnitOfWork:
-        from qx.db.outbox import DefaultOutboxRecorder
-        return UnitOfWork(
-            session_factory=session_factory,
-            dispatcher=MediatorEventDispatcher(mediator),
-            outbox=DefaultOutboxRecorder(),
-        )
+    # ---- UnitOfWork (scoped per request) ----
+    dispatcher = MediatorEventDispatcher(mediator)
+    outbox = DefaultOutboxRecorder()
+
+    def _uow_factory(sf: SessionFactory) -> UnitOfWork:
+        return UnitOfWork(session_factory=sf, dispatcher=dispatcher, outbox=outbox)
+
     container.register_scoped(UnitOfWork, _uow_factory)
 
     # ---- Handlers (commands, queries, integration handlers) ----

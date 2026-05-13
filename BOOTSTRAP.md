@@ -20,6 +20,11 @@ This document is the complete guide to building a production-grade backend servi
    - [HTTP layer](#57-http-layer)
    - [Worker runtime](#58-worker-runtime)
    - [Observability](#59-observability)
+   - [Feature flags](#510-feature-flags)
+   - [Sagas (process managers)](#511-sagas-process-managers)
+   - [Event-sourced aggregates](#512-event-sourced-aggregates)
+   - [Read-model projections](#513-read-model-projections)
+   - [Multi-region routing](#514-multi-region-routing)
 6. [Wiring the composition root](#6-wiring-the-composition-root)
 7. [Running locally](#7-running-locally)
 8. [Design guidelines and conventions](#8-design-guidelines-and-conventions)
@@ -507,6 +512,220 @@ Register health checks:
 health.add_check("database", lambda: db_engine.connect())
 health.add_check("nats", lambda: nats_client.ping())
 ```
+
+---
+
+## 5.10 Feature flags
+
+`qx-flags` wraps the [OpenFeature](https://openfeature.dev/) standard so handlers can query flags without coupling to a specific provider.
+
+```python
+from qx.flags import FlagClient, InMemoryProvider
+
+# Dev / test — in-memory values
+provider = InMemoryProvider({"payments.new-checkout": False})
+flags = FlagClient(provider)
+container.register_instance(FlagClient, flags)
+```
+
+In a handler:
+
+```python
+@query_handler(GetCheckoutQuery)
+class GetCheckoutHandler:
+    def __init__(self, uow: UnitOfWork, flags: FlagClient) -> None:
+        self._uow = uow
+        self._flags = flags
+
+    async def handle(self, q: GetCheckoutQuery) -> Result[CheckoutDto]:
+        new_flow = await self._flags.bool("payments.new-checkout", default=False)
+        # branch on new_flow...
+```
+
+Swap `InMemoryProvider` for any OpenFeature-compatible provider (LaunchDarkly, Flagsmith, Unleash) without changing handlers.
+
+**Testing with flags:**
+
+```python
+from qx.testing import FlagClientStub
+
+flags = FlagClientStub({"payments.new-checkout": True})
+handler = GetCheckoutHandler(uow_stub, flags)
+result = await handler.handle(query)
+```
+
+---
+
+## 5.11 Sagas (process managers)
+
+`qx-saga` orchestrates workflows that span multiple aggregates or services, with built-in compensation on failure.
+
+```python
+from qx.saga import Saga, SagaState, on
+
+class OnboardingState(SagaState):
+    user_id: UUID | None = None
+    workspace_id: UUID | None = None
+
+class OnboardingSaga(Saga[OnboardingState]):
+    @on(UserRegistered)
+    async def start(self, ev: UserRegistered) -> None:
+        self.state.user_id = ev.user_id
+        await self.dispatch(ProvisionWorkspaceCommand(user_id=ev.user_id))
+
+    @on(WorkspaceProvisioned)
+    async def workspace_done(self, ev: WorkspaceProvisioned) -> None:
+        self.state.workspace_id = ev.workspace_id
+        await self.dispatch(SendWelcomeEmailCommand(user_id=self.state.user_id))
+
+    @on(EmailSent)
+    async def complete(self, _ev: EmailSent) -> None:
+        self.complete()
+
+    async def compensate(self) -> None:
+        if self.state.workspace_id:
+            await self.dispatch(DeprovisionWorkspaceCommand(workspace_id=self.state.workspace_id))
+```
+
+Saga state persists in `qx_sagas` (one row per instance, JSONB state column). The `SagaManager` polls or subscribes to integration events, loads the matching saga, runs the handler, and saves state in a single transaction.
+
+Register the saga in the composition root:
+
+```python
+from qx.saga import SagaManager, include_saga_table
+
+saga_table = include_saga_table(metadata)
+manager = SagaManager(engine, mediator, sagas=[OnboardingSaga])
+container.register_instance(SagaManager, manager)
+```
+
+---
+
+## 5.12 Event-sourced aggregates
+
+`qx-eventstore` persists aggregates as their event history rather than current state. Use it for aggregates that need full audit trails, time-travel reads, or projection rebuilds.
+
+```python
+from qx.eventstore import EventSourcedAggregate, event_sourced
+
+@event_sourced
+class LedgerAccount(EventSourcedAggregate[Identifier]):
+    balance: int = 0
+
+    def deposit(self, amount: int) -> None:
+        self.record_event(MoneyDeposited(amount=amount))
+
+    def withdraw(self, amount: int) -> Result[None]:
+        if self.balance < amount:
+            return Result.failure(DomainError(code="ledger.insufficient_funds", message="..."))
+        self.record_event(MoneyWithdrawn(amount=amount))
+        return Result.success(None)
+
+    def apply_moneydeposited(self, ev: MoneyDeposited) -> None:
+        self.balance += ev.amount
+
+    def apply_moneywithdrawn(self, ev: MoneyWithdrawn) -> None:
+        self.balance -= ev.amount
+```
+
+`apply_*` methods are the only state mutators — they are called on replay. The `EventStoreRepository` loads the event stream, calls `apply_*` for each event (starting from the latest snapshot if one exists), and returns the reconstituted aggregate.
+
+```python
+from qx.eventstore import EventStoreRepository, include_event_store_tables
+
+events_t, snapshots_t = include_event_store_tables(metadata)
+repo = EventStoreRepository(session_factory, events_t, snapshots_t, snapshot_every=50)
+```
+
+---
+
+## 5.13 Read-model projections
+
+`qx-projections` builds and incrementally updates read models from the event stream.
+
+```python
+from qx.projections import Projection, ProjectionRunner
+
+class UserSummaryProjection(Projection):
+    async def on_userregistered(self, ev: UserRegistered) -> None:
+        await self._session.execute(
+            insert(user_summary_table).values(
+                id=ev.user_id, email=ev.email, name=ev.name
+            )
+        )
+
+    async def on_useremailchanged(self, ev: UserEmailChanged) -> None:
+        await self._session.execute(
+            update(user_summary_table)
+            .where(user_summary_table.c.id == ev.user_id)
+            .values(email=ev.new_email)
+        )
+```
+
+Run the projection worker:
+
+```python
+runner = ProjectionRunner(engine, events_table, checkpoints_table)
+runner.register(UserSummaryProjection(session_factory))
+await runner.run()   # polls continuously; call runner.stop() on SIGTERM
+```
+
+Rebuild from scratch (e.g. after schema change):
+
+```python
+async with session_factory() as session:
+    count = await runner.rebuild(session, projection_name="UserSummaryProjection")
+```
+
+---
+
+## 5.14 Multi-region routing
+
+`qx-regions` adds tenant-aware region routing for active/active multi-region deployments.
+
+**Region resolver** — maps a tenant to its home region:
+
+```python
+from qx.regions import DbRegionResolver, RegionConfig, RegionRouter
+
+config = RegionConfig()  # reads QX_REGION__NAME and QX_REGION__URLS from env
+resolver = DbRegionResolver(session_factory, tenant_regions_table, default=config.name)
+router = RegionRouter(resolver, config)
+```
+
+**HTTP redirect middleware** — automatically 307-redirects write requests to the tenant's home region. Pass `region_router=` to `setup_qx_app`:
+
+```python
+app = setup_qx_app(container, settings, ..., region_router=router)
+```
+
+This intercepts `POST/PUT/PATCH/DELETE` requests, resolves the tenant's home region from `RequestContext.tenant_id`, and redirects if the tenant's home differs from this instance's region. `GET` traffic is always served locally.
+
+**Cross-region event replication** — forward published events to remote regions when JetStream mirroring is not available:
+
+```python
+from qx.regions import RegionReplicator
+
+replicator = RegionReplicator(
+    engine, remote_nats_publisher,
+    target_region="eu-west-1",
+    events_table=events_t,
+    checkpoints_table=checkpoints_t,
+)
+await replicator.run()   # long-running background task
+```
+
+**Schema-per-tenant Alembic fan-out:**
+
+```python
+# alembic/env.py
+from qx.db.migrations import run_async_migrations_all_schemas
+
+def run_migrations_online() -> None:
+    run_async_migrations_all_schemas(metadata, schema_prefix="tenant_")
+```
+
+This runs the full migration set inside every tenant schema that matches the prefix, giving each its own `alembic_version` tracking table.
 
 ---
 

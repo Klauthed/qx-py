@@ -8,7 +8,12 @@ from qx.testing.containers import (
     postgres_container,
     redis_container,
 )
-from qx.testing.doubles import InMemorySearchRepository, MediatorStub, RepositoryStub
+from qx.testing.doubles import (
+    FlagClientStub,
+    InMemorySearchRepository,
+    MediatorStub,
+    RepositoryStub,
+)
 from qx.testing.fixtures import (
     container_factory,
     http_client_factory,
@@ -19,6 +24,7 @@ __version__ = "0.1.0"
 
 __all__ = [
     # Doubles
+    "FlagClientStub",
     "InMemorySearchRepository",
     "MediatorStub",
     # Assertions

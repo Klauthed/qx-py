@@ -34,10 +34,48 @@ from qx.search.repository import SearchHit, SearchQuery, SearchRepository
 if TYPE_CHECKING:
     from uuid import UUID
 
-__all__ = ["InMemorySearchRepository", "MediatorStub", "RepositoryStub"]
+__all__ = ["FlagClientStub", "InMemorySearchRepository", "MediatorStub", "RepositoryStub"]
 
 
 TEntity = TypeVar("TEntity", bound=Entity[Any])
+
+
+class FlagClientStub:
+    """Test double for ``qx.flags.FlagClient``.
+
+    Pre-load flag values with ``set()``, then inject in place of the real
+    ``FlagClient``. Supports all four value types (bool, str, int, float)::
+
+        flags = FlagClientStub({"payments.new-checkout": True})
+        handler = CheckoutHandler(uow, flags)
+        result = await handler.handle(cmd)
+
+    Querying an unknown flag returns ``default`` — same contract as the real
+    client when the provider has no matching flag key.
+    """
+
+    def __init__(self, flags: dict[str, Any] | None = None) -> None:
+        self._flags: dict[str, Any] = dict(flags or {})
+
+    def set(self, key: str, value: Any) -> None:
+        """Override a flag value at runtime (useful inside a single test)."""
+        self._flags[key] = value
+
+    def remove(self, key: str) -> None:
+        """Remove a flag so queries fall back to ``default``."""
+        self._flags.pop(key, None)
+
+    async def bool(self, key: str, *, default: bool = False, **_: Any) -> bool:
+        return bool(self._flags.get(key, default))
+
+    async def string(self, key: str, *, default: str = "", **_: Any) -> str:
+        return str(self._flags.get(key, default))
+
+    async def int(self, key: str, *, default: int = 0, **_: Any) -> int:
+        return int(self._flags.get(key, default))
+
+    async def float(self, key: str, *, default: float = 0.0, **_: Any) -> float:
+        return float(self._flags.get(key, default))
 
 
 class RepositoryStub[TEntity: Entity[Any]]:
