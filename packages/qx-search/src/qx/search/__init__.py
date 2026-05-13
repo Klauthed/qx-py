@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from qx.search.client import SearchSettings, create_search_client
 from qx.search.indexing import drop_index, ensure_index
-from qx.search.repository import SearchHit, SearchQuery, SearchRepository
+from qx.search.repository import OpenSearchRepository, SearchHit, SearchQuery, SearchRepository
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "OpenSearchRepository",
     "SearchHit",
     "SearchQuery",
     "SearchRepository",

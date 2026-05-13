@@ -15,7 +15,8 @@ storage. This is the "test against the contract, not the implementation" school.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+import dataclasses
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from qx.core import (
     ConflictError,
@@ -28,11 +29,12 @@ from qx.core import (
 )
 from qx.cqrs import MediatorError
 from qx.cqrs.messages import Command, Query
+from qx.search.repository import SearchHit, SearchQuery, SearchRepository
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-__all__ = ["MediatorStub", "RepositoryStub"]
+__all__ = ["InMemorySearchRepository", "MediatorStub", "RepositoryStub"]
 
 
 TEntity = TypeVar("TEntity", bound=Entity[Any])
@@ -147,3 +149,80 @@ class MediatorStub:
 
     async def publish(self, event: DomainEvent) -> None:
         self.published_domain.append(event)
+
+
+TDoc = TypeVar("TDoc")
+
+
+class InMemorySearchRepository[TDoc](SearchRepository[TDoc]):
+    """In-memory search repository for unit tests.
+
+    Stores documents in a plain dict; text matching is substring-based;
+    filter matching is exact equality. Fast and zero-dependency — no running
+    OpenSearch required.
+
+    Typical use::
+
+        repo = InMemorySearchRepository[ProductDoc]()
+        await repo.index("p1", ProductDoc(name="Red shoes", category="footwear"))
+        result = await repo.search(SearchQuery(text="shoes"))
+        assert result.value[1] == 1  # total
+    """
+
+    def __init__(self) -> None:
+        self._store: dict[str, tuple[Any, dict[str, Any]]] = {}
+
+    def preload(self, doc_id: str, document: TDoc) -> None:
+        """Seed the store without going through async index()."""
+        self._store[doc_id] = (document, self._to_dict(document))
+
+    async def index(self, doc_id: str, document: TDoc) -> Result[None]:
+        self._store[doc_id] = (document, self._to_dict(document))
+        return Result.success(None)
+
+    async def delete(self, doc_id: str) -> Result[None]:
+        self._store.pop(doc_id, None)
+        return Result.success(None)
+
+    async def search(self, query: SearchQuery) -> Result[tuple[list[SearchHit[TDoc]], int]]:
+        hits: list[SearchHit[TDoc]] = []
+        for doc, source in self._store.values():
+            if not self._matches_filters(source, query):
+                continue
+            score = self._text_score(source, query)
+            if query.text and score == 0.0:
+                continue
+            hits.append(SearchHit(doc=doc, score=score, source=source))
+
+        if query.sort:
+            for field, order in reversed(query.sort):
+
+                def _key(h: SearchHit[TDoc], f: str = field) -> Any:
+                    return h.source.get(f, "")
+
+                hits.sort(key=_key, reverse=(order.lower() == "desc"))
+        else:
+            hits.sort(key=lambda h: h.score, reverse=True)
+
+        total = len(hits)
+        offset = (query.page - 1) * query.page_size
+        return Result.success((hits[offset : offset + query.page_size], total))
+
+    @staticmethod
+    def _matches_filters(source: dict[str, Any], query: SearchQuery) -> bool:
+        return all(source.get(k) == v for k, v in query.filters.items())
+
+    @staticmethod
+    def _text_score(source: dict[str, Any], query: SearchQuery) -> float:
+        if not query.text:
+            return 1.0
+        needle = query.text.lower()
+        return sum(1.0 for v in source.values() if isinstance(v, str) and needle in v.lower())
+
+    @staticmethod
+    def _to_dict(document: Any) -> dict[str, Any]:
+        if hasattr(document, "model_dump"):
+            return cast("dict[str, Any]", document.model_dump(mode="json"))
+        if dataclasses.is_dataclass(document) and not isinstance(document, type):
+            return dataclasses.asdict(document)
+        return {k: v for k, v in vars(document).items() if not k.startswith("_")}

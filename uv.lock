@@ -1689,6 +1689,7 @@ dependencies = [
     { name = "qx-di" },
     { name = "qx-events" },
     { name = "qx-http" },
+    { name = "qx-search" },
     { name = "testcontainers", extra = ["redis"] },
 ]
 
@@ -1704,6 +1705,7 @@ requires-dist = [
     { name = "qx-di", editable = "packages/qx-di" },
     { name = "qx-events", editable = "packages/qx-events" },
     { name = "qx-http", editable = "packages/qx-http" },
+    { name = "qx-search", editable = "packages/qx-search" },
     { name = "testcontainers", extras = ["postgresql", "redis"], specifier = ">=4.8.0" },
 ]
 
