@@ -25,6 +25,7 @@ members = [
     "qx-observability",
     "qx-projections",
     "qx-python-workspace",
+    "qx-regions",
     "qx-saga",
     "qx-search",
     "qx-testing",
@@ -1669,6 +1670,7 @@ dependencies = [
     { name = "qx-http" },
     { name = "qx-observability" },
     { name = "qx-projections" },
+    { name = "qx-regions" },
     { name = "qx-saga" },
     { name = "qx-search" },
     { name = "qx-testing" },
@@ -1705,6 +1707,7 @@ requires-dist = [
     { name = "qx-http", editable = "packages/qx-http" },
     { name = "qx-observability", editable = "packages/qx-observability" },
     { name = "qx-projections", editable = "packages/qx-projections" },
+    { name = "qx-regions", editable = "packages/qx-regions" },
     { name = "qx-saga", editable = "packages/qx-saga" },
     { name = "qx-search", editable = "packages/qx-search" },
     { name = "qx-testing", editable = "packages/qx-testing" },
@@ -1721,6 +1724,27 @@ dev = [
     { name = "pytest-cov", specifier = ">=5.0.0" },
     { name = "ruff", specifier = ">=0.6.0" },
     { name = "testcontainers", specifier = ">=4.8.0" },
+]
+
+[[package]]
+name = "qx-regions"
+version = "0.1.0"
+source = { editable = "packages/qx-regions" }
+dependencies = [
+    { name = "pydantic-settings" },
+    { name = "qx-core" },
+    { name = "qx-db" },
+    { name = "qx-events" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic-settings", specifier = ">=2.3.0" },
+    { name = "qx-core", editable = "packages/qx-core" },
+    { name = "qx-db", editable = "packages/qx-db" },
+    { name = "qx-events", editable = "packages/qx-events" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.30" },
 ]
 
 [[package]]

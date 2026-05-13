@@ -32,6 +32,7 @@ PACKAGES=(
   qx-eventstore
   qx-projections
   qx-flags
+  qx-regions
   qx-testing
   qx-cli
 )

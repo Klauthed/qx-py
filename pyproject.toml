@@ -23,6 +23,7 @@ dependencies = [
     "qx-eventstore",
     "qx-projections",
     "qx-flags",
+    "qx-regions",
     "qx-cli",
     "qx-testing",
     "qx-devtools",
@@ -51,6 +52,7 @@ qx-saga = { workspace = true }
 qx-eventstore = { workspace = true }
 qx-projections = { workspace = true }
 qx-flags = { workspace = true }
+qx-regions = { workspace = true }
 qx-cli = { workspace = true }
 qx-testing = { workspace = true }
 qx-devtools = { workspace = true }
@@ -122,6 +124,7 @@ mypy_path = [
     "packages/qx-eventstore/src",
     "packages/qx-projections/src",
     "packages/qx-flags/src",
+    "packages/qx-regions/src",
     "packages/qx-testing/src",
     "packages/qx-cli/src",
     "packages/qx-devtools/src",
