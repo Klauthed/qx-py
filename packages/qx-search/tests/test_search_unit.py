@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from unittest.mock import AsyncMock
 
-import pytest
 from qx.search import OpenSearchRepository, SearchQuery, SearchSettings
-from qx.search.repository import SearchHit, SearchRepository
 from qx.testing import InMemorySearchRepository
 
 
@@ -120,14 +118,12 @@ class _Doc:
 
 
 def test_dsl_match_all_when_no_query() -> None:
-    from unittest.mock import AsyncMock
     repo = OpenSearchRepository(client=AsyncMock(), index="idx", doc_type=_Doc)
     dsl = repo._build_dsl(SearchQuery())
     assert dsl == {"query": {"match_all": {}}}
 
 
 def test_dsl_text_only() -> None:
-    from unittest.mock import AsyncMock
     repo = OpenSearchRepository(client=AsyncMock(), index="idx", doc_type=_Doc)
     dsl = repo._build_dsl(SearchQuery(text="hello"))
     assert dsl["query"]["bool"]["must"][0]["multi_match"]["query"] == "hello"
@@ -135,7 +131,6 @@ def test_dsl_text_only() -> None:
 
 
 def test_dsl_filter_only() -> None:
-    from unittest.mock import AsyncMock
     repo = OpenSearchRepository(client=AsyncMock(), index="idx", doc_type=_Doc)
     dsl = repo._build_dsl(SearchQuery(filters={"status": "active"}))
     assert dsl["query"]["bool"]["filter"] == [{"term": {"status": "active"}}]
@@ -143,7 +138,6 @@ def test_dsl_filter_only() -> None:
 
 
 def test_dsl_sort_appended() -> None:
-    from unittest.mock import AsyncMock
     repo = OpenSearchRepository(client=AsyncMock(), index="idx", doc_type=_Doc)
     dsl = repo._build_dsl(SearchQuery(sort=[("created_at", "desc")]))
     assert dsl["sort"] == [{"created_at": {"order": "desc"}}]
