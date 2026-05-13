@@ -58,9 +58,8 @@ jobs:
             echo "→ $(basename "$f")"
             uvx twine upload \
               --repository-url "https://upload.pypi.pkg.github.com/${REPO_OWNER}/" \
-              --skip-existing \
               "$f" \
-              || echo "  ⚠ upload failed — continuing"
+              || echo "  ⚠ skipped (already published or error)"
           done
 
       - name: Summary
