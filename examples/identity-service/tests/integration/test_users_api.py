@@ -228,9 +228,11 @@ def test_get_user_profile_with_enhanced_flag_includes_is_active(
         return _orig_obs(*args, **kwargs)
 
     def _enhanced_provider(_flags=None):  # type: ignore[no-untyped-def]
-        return _OrigProvider({
-            "identity.enhanced-profile": InMemoryFlag("on", {"on": True, "off": False}),
-        })
+        return _OrigProvider(
+            {
+                "identity.enhanced-profile": InMemoryFlag("on", {"on": True, "off": False}),
+            }
+        )
 
     monkeypatch.setattr(main_mod, "setup_observability", _patched_obs)
     monkeypatch.setattr(main_mod, "InMemoryProvider", _enhanced_provider)

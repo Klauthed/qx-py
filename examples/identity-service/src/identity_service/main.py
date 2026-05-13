@@ -73,9 +73,11 @@ def build_app() -> FastAPI:
 
     # ---- Feature flags (InMemoryProvider for dev; swap for OpenFeature in prod) ----
     FlagClient.configure(
-        InMemoryProvider({
-            "identity.enhanced-profile": InMemoryFlag("off", {"on": True, "off": False}),
-        })
+        InMemoryProvider(
+            {
+                "identity.enhanced-profile": InMemoryFlag("off", {"on": True, "off": False}),
+            }
+        )
     )
     container.register_instance(FlagClient, FlagClient())
 
