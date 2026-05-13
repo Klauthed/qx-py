@@ -7,6 +7,7 @@ license = { text = "MIT" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [
     "identity-service",
+    "qx-py",
     "qx-core",
     "qx-di",
     "qx-cqrs",
@@ -56,6 +57,7 @@ qx-regions = { workspace = true }
 qx-cli = { workspace = true }
 qx-testing = { workspace = true }
 qx-devtools = { workspace = true }
+qx-py = { workspace = true }
 
 [dependency-groups]
 dev = [

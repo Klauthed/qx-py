@@ -35,6 +35,7 @@ PACKAGES=(
   qx-regions
   qx-testing
   qx-cli
+  qx-py
 )
 
 echo "Building ${#PACKAGES[@]} packages ..."

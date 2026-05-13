@@ -1,0 +1,46 @@
+[project]
+name = "qx-py"
+version = "0.1.0"
+description = "Qx Python framework — installs the full stack in one command"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT" }
+authors = [{ name = "Qx Engineering" }]
+keywords = ["qx", "framework", "cqrs", "ddd", "fastapi", "sqlalchemy", "nats"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "qx-core>=0.1.0",
+    "qx-di>=0.1.0",
+    "qx-cqrs>=0.1.0",
+    "qx-db>=0.1.0",
+    "qx-cache>=0.1.0",
+    "qx-events>=0.1.0",
+    "qx-http>=0.1.0",
+    "qx-worker>=0.1.0",
+    "qx-observability>=0.1.0",
+    "qx-auth>=0.1.0",
+    "qx-grpc>=0.1.0",
+    "qx-search>=0.1.0",
+    "qx-saga>=0.1.0",
+    "qx-eventstore>=0.1.0",
+    "qx-projections>=0.1.0",
+    "qx-flags>=0.1.0",
+    "qx-regions>=0.1.0",
+    "qx-testing>=0.1.0",
+    "qx-cli>=0.1.0",
+    "qx-devtools>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qx_py"]

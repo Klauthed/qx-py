@@ -33,8 +33,14 @@ PACKAGES=(
   qx-auth
   qx-grpc
   qx-search
+  qx-saga
+  qx-eventstore
+  qx-projections
+  qx-flags
+  qx-regions
   qx-testing
   qx-cli
+  qx-py
 )
 
 echo "Bumping all packages to $NEW_VERSION ..."
@@ -49,8 +55,14 @@ for pkg in "${PACKAGES[@]}"; do
   current=$(grep '^version = ' "$toml" | head -1 | sed 's/version = "\(.*\)"/\1/')
   LC_ALL=C sed -i '' "s/^version = \"$current\"/version = \"$NEW_VERSION\"/" "$toml"
 
-  # Also bump the __version__ constant in the package's __init__.py if present
-  init="$ROOT/packages/$pkg/src/qx/$(echo $pkg | sed 's/qx-//')/__init__.py"
+  # Also bump the __version__ constant in the package's __init__.py if present.
+  # qx-py uses src/qx_py/; all others use src/qx/<submodule>/.
+  module=$(echo "$pkg" | sed 's/qx-//' | tr '-' '_')
+  if [[ "$pkg" == "qx-py" ]]; then
+    init="$ROOT/packages/$pkg/src/qx_py/__init__.py"
+  else
+    init="$ROOT/packages/$pkg/src/qx/$module/__init__.py"
+  fi
   if [[ -f "$init" ]]; then
     LC_ALL=C sed -i '' "s/__version__ = \"$current\"/__version__ = \"$NEW_VERSION\"/" "$init"
   fi

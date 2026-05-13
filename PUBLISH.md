@@ -6,10 +6,21 @@ This document covers everything needed to release the qx framework packages to P
 
 ## Package overview
 
-qx ships as 15 independent PyPI packages under the `qx-` prefix. Users install only what they need:
+qx ships as 20 independent PyPI packages under the `qx-` prefix, plus a `qx-py` meta-package that installs them all at once.
+
+**Quick install (full stack):**
+```bash
+pip install qx-py
+```
+
+**Cherry-pick (lightweight services):**
+```bash
+pip install qx-core qx-di qx-cqrs qx-db qx-http qx-observability
+```
 
 | Package | PyPI name | Description |
 |---|---|---|
+| **qx-py** | `qx-py` | **Meta-package — installs all 20 packages below** |
 | qx-core | `qx-core` | Result, Error, Entity, AggregateRoot, RequestContext, Settings |
 | qx-di | `qx-di` | Async DI container (SINGLETON / SCOPED / TRANSIENT) |
 | qx-cqrs | `qx-cqrs` | Command / Query / Event mediator + pipeline behaviors |
@@ -22,6 +33,11 @@ qx ships as 15 independent PyPI packages under the `qx-` prefix. Users install o
 | qx-auth | `qx-auth` | JWT, OIDC, RBAC, policy evaluator, token-bucket rate limit |
 | qx-grpc | `qx-grpc` | gRPC server factory + request-context / metrics interceptors |
 | qx-search | `qx-search` | OpenSearch async client + SearchRepository abstract base |
+| qx-saga | `qx-saga` | Orchestrated process managers / sagas with compensation |
+| qx-eventstore | `qx-eventstore` | Event-sourced aggregates with snapshot support |
+| qx-projections | `qx-projections` | Incremental read-model projections from the event stream |
+| qx-flags | `qx-flags` | Feature flags via OpenFeature |
+| qx-regions | `qx-regions` | Multi-region tenant routing and cross-region event replication |
 | qx-testing | `qx-testing` | testcontainers helpers, MediatorStub, RepositoryStub, OutboxAssert |
 | qx-cli | `qx-cli` | `qx` CLI: scaffold service, generate artifacts, `dev up/down` |
 | qx-devtools | `qx-devtools` | Shared ruff / mypy / pre-commit configs for services |
