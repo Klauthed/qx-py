@@ -86,5 +86,5 @@ def abort_with_error(context: grpc.aio.ServicerContext, error: Error) -> None:
     detail support. ``ServicerContext.abort`` would only carry code+message.
     """
     raise rpc_status.to_status(
-        status_from_error(error)
+        status_from_error(error),
     )  # synchronous: turns into trailing metadata
