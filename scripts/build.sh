@@ -31,6 +31,7 @@ PACKAGES=(
   qx-saga
   qx-eventstore
   qx-projections
+  qx-flags
   qx-testing
   qx-cli
 )
