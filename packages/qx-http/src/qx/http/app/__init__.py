@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi import FastAPI
 from qx.http.deps import attach_container
 from qx.http.exceptions import install_exception_handlers
-from qx.http.middleware import MetricsMiddleware, RequestContextMiddleware
+from qx.http.middleware import MetricsMiddleware, RegionRedirectMiddleware, RequestContextMiddleware
 from qx.http.probes import make_probes_router
 from qx.observability import HealthRegistry, Metrics
 
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
     from qx.core import QxSettings
     from qx.di import Container
+    from qx.regions import RegionRouter
 
 __all__ = ["setup_qx_app"]
 
@@ -53,6 +54,7 @@ def setup_qx_app(
     docs_url: str | None = "/docs",
     openapi_url: str | None = "/openapi.json",
     extra_lifespan: Any | None = None,
+    region_router: RegionRouter | None = None,
 ) -> FastAPI:
     """Build a FastAPI app preconfigured with framework conventions."""
 
@@ -84,10 +86,12 @@ def setup_qx_app(
     attach_container(app, container)
     install_exception_handlers(app)
 
-    # Middleware order is "first added, outermost". We want request-context
-    # outermost (so it's in scope for everything else) and metrics innermost
-    # (so it measures the full request including other middleware).
+    # Each add_middleware call wraps the current app, so the last call is
+    # outermost. Execution order: RequestContext → RegionRedirect (if set) →
+    # Metrics → route handlers.
     app.add_middleware(MetricsMiddleware, metrics=metrics)
+    if region_router is not None:
+        app.add_middleware(RegionRedirectMiddleware, router=region_router)
     app.add_middleware(RequestContextMiddleware)
 
     app.include_router(make_probes_router())

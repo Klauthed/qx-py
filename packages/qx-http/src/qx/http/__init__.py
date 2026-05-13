@@ -14,7 +14,7 @@ from qx.http.deps import (
     unwrap,
 )
 from qx.http.exceptions import install_exception_handlers
-from qx.http.middleware import MetricsMiddleware, RequestContextMiddleware
+from qx.http.middleware import MetricsMiddleware, RegionRedirectMiddleware, RequestContextMiddleware
 from qx.http.probes import make_probes_router
 from qx.http.responses import (
     ApiError,
@@ -32,6 +32,7 @@ __all__ = [
     "ApiResponse",
     "Inject",
     "MetricsMiddleware",
+    "RegionRedirectMiddleware",
     "RequestContextMiddleware",
     "__version__",
     "attach_container",

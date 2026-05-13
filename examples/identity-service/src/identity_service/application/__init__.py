@@ -46,12 +46,17 @@ def register_handlers(mediator: Mediator, _container: Container) -> int:
     from identity_service.application.integration_handlers import (  # noqa: PLC0415
         on_user_registered,
     )
-    from identity_service.application.queries import get_user, list_users  # noqa: PLC0415
+    from identity_service.application.queries import (  # noqa: PLC0415
+        get_user,
+        get_user_profile,
+        list_users,
+    )
 
     return mediator.register_decorated(
         create_user,
         change_email,
         get_user,
+        get_user_profile,
         list_users,
         on_user_registered,
     )

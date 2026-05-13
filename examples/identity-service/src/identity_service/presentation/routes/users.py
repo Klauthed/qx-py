@@ -12,6 +12,7 @@ from qx.http import Inject, envelope_success, scope_dep, unwrap
 from identity_service.application.commands.change_email import ChangeEmailCommand
 from identity_service.application.commands.create_user import CreateUserCommand  # noqa: TC001
 from identity_service.application.queries.get_user import GetUserQuery
+from identity_service.application.queries.get_user_profile import GetUserProfileQuery
 from identity_service.application.queries.list_users import ListUsersQuery
 
 
@@ -64,6 +65,21 @@ async def list_users(
         page_size=page_obj.page_size,
         total=page_obj.total,
     )
+
+
+@router.get("/{user_id}/profile")
+async def get_user_profile(
+    user_id: UUID,
+    mediator: Mediator = Inject(Mediator),  # noqa: B008
+    scope: Scope = Depends(scope_dep),  # noqa: B008
+) -> dict[str, Any]:
+    """Fetch a user's profile.
+
+    Returns ``is_active`` only when the ``identity.enhanced-profile`` feature
+    flag is enabled, demonstrating flag-gated response shaping.
+    """
+    result = await mediator.send(GetUserProfileQuery(user_id=user_id), scope=scope)
+    return envelope_success(unwrap(result).model_dump(mode="json", exclude_none=True))
 
 
 @router.patch("/{user_id}/email", status_code=status.HTTP_204_NO_CONTENT)

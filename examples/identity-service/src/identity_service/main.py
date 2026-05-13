@@ -23,8 +23,10 @@ from qx.db import (
 from qx.db.outbox import DefaultOutboxRecorder
 from qx.di import Container
 from qx.events import EventRegistry, MediatorEventDispatcher
+from qx.flags import FlagClient, InMemoryProvider
 from qx.http import setup_qx_app
 from qx.observability import setup_observability
+from qx.regions import RegionConfig, RegionRouter, StaticRegionResolver
 
 from identity_service.application import register_events, register_handlers
 from identity_service.presentation import register_routes
@@ -69,6 +71,16 @@ def build_app() -> FastAPI:
 
     container.register_scoped(UnitOfWork, _uow_factory)
 
+    # ---- Feature flags (InMemoryProvider for dev; swap for OpenFeature in prod) ----
+    flag_provider = InMemoryProvider({"identity.enhanced-profile": False})
+    flags = FlagClient(flag_provider)
+    container.register_instance(FlagClient, flags)
+
+    # ---- Region routing (StaticResolver for dev; swap DbRegionResolver in prod) ----
+    region_config = RegionConfig()  # reads QX_REGION__NAME + QX_REGION__URLS from env
+    region_resolver = StaticRegionResolver({}, default=region_config.name)
+    region_router = RegionRouter(region_resolver, region_config)
+
     # ---- Register handlers (must come after UnitOfWork/SessionFactory are in DI) ----
     register_handlers(mediator, container)
 
@@ -85,6 +97,7 @@ def build_app() -> FastAPI:
         metrics=metrics,
         health=health,
         extra_lifespan=lifespan,
+        region_router=region_router,
     )
     register_routes(app)
     return app

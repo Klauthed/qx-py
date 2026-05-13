@@ -13,6 +13,10 @@ All middleware respect the ``X-Correlation-Id`` header convention: if present,
 we adopt it; if absent, we mint a fresh UUID. The chosen id goes back in the
 response header so clients (and CDN logs, and gateway access logs) can join
 on it.
+
+``RegionRedirectMiddleware`` is an optional add-on for multi-region deployments.
+It must be added AFTER ``RequestContextMiddleware`` so the tenant context is
+established before region resolution runs.
 """
 
 from __future__ import annotations
@@ -21,16 +25,18 @@ import time
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from qx.core import RequestContext, request_scope
+from qx.core import RequestContext, current_context, request_scope
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 
 if TYPE_CHECKING:
+    from qx.regions import RegionRouter
     from starlette.requests import Request
-    from starlette.responses import Response
     from starlette.types import ASGIApp
 
 __all__ = [
     "MetricsMiddleware",
+    "RegionRedirectMiddleware",
     "RequestContextMiddleware",
 ]
 
@@ -132,3 +138,75 @@ class MetricsMiddleware(BaseHTTPMiddleware):
                 ).observe(duration)
             except Exception:
                 pass
+
+
+_WRITE_METHODS: frozenset[str] = frozenset({"DELETE", "PATCH", "POST", "PUT"})
+_INFRA_PREFIXES: tuple[str, ...] = ("/healthz", "/metrics", "/readyz")
+
+
+class RegionRedirectMiddleware(BaseHTTPMiddleware):
+    """Redirect write requests to the tenant's home region.
+
+    Reads the tenant_id from the active ``RequestContext`` (populated by
+    ``RequestContextMiddleware``) and, if the tenant's home region differs from
+    this instance's region, returns a **307 Temporary Redirect** to the
+    equivalent URL on the home region.
+
+    Read traffic (GET, HEAD, OPTIONS) is always served locally. Internal
+    infrastructure paths (``/healthz``, ``/readyz``, ``/metrics``) are
+    always served locally regardless of method.
+
+    This middleware must be added **after** ``RequestContextMiddleware`` in the
+    middleware stack so the tenant context is established before region
+    resolution runs. With ``setup_qx_app`` pass ``region_router=`` and it is
+    inserted automatically in the right position::
+
+        app = setup_qx_app(container, settings, ..., region_router=router)
+
+    Or add it manually (ensure ordering)::
+
+        app.add_middleware(RegionRedirectMiddleware, router=router)
+        app.add_middleware(RequestContextMiddleware)  # must be outermost
+    """
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        router: RegionRouter,
+        *,
+        write_methods: frozenset[str] = _WRITE_METHODS,
+        skip_prefixes: tuple[str, ...] = _INFRA_PREFIXES,
+    ) -> None:
+        super().__init__(app)
+        self._router = router
+        self._write_methods = write_methods
+        self._skip_prefixes = skip_prefixes
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        if request.method not in self._write_methods:
+            return await call_next(request)
+
+        path = request.url.path
+        if any(path.startswith(p) for p in self._skip_prefixes):
+            return await call_next(request)
+
+        try:
+            ctx: RequestContext | None = current_context()
+        except LookupError:
+            ctx = None
+
+        if ctx is None or ctx.tenant_id is None:
+            return await call_next(request)
+
+        redirect_url = await self._router.get_redirect_url(ctx.tenant_id, path)
+        if redirect_url is None:
+            return await call_next(request)
+
+        if request.url.query:
+            redirect_url = f"{redirect_url}?{request.url.query}"
+
+        return Response(status_code=307, headers={"Location": redirect_url})

@@ -19,6 +19,7 @@ from qx.db.mapping import (
     standard_audit_columns,
     uuid_column,
 )
+from qx.db.migrations import run_async_migrations, run_async_migrations_all_schemas
 from qx.db.outbox import (
     OUTBOX_TABLE_NAME,
     DefaultOutboxRecorder,
@@ -71,6 +72,8 @@ __all__ = [
     "open_rls_session",
     "open_schema_session",
     "open_session",
+    "run_async_migrations",
+    "run_async_migrations_all_schemas",
     "standard_audit_columns",
     "uuid_column",
 ]
