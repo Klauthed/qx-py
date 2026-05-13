@@ -7,6 +7,7 @@ license = { text = "MIT" }
 authors = [{ name = "Qx Engineering" }]
 dependencies = [
     "identity-service",
+    "order-service",
     "qx-py",
     "qx-core",
     "qx-di",
@@ -33,10 +34,14 @@ dependencies = [
 
 [tool.uv.workspace]
 members = [
-    "examples/identity-service","packages/*"]
+    "examples/identity-service",
+    "examples/order-service",
+    "packages/*",
+]
 
 [tool.uv.sources]
 identity-service = { workspace = true }
+order-service = { workspace = true }
 qx-core = { workspace = true }
 qx-di = { workspace = true }
 qx-cqrs = { workspace = true }
@@ -144,7 +149,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["packages/*/tests", "tests"]
+testpaths = ["packages/*/tests", "examples/*/tests", "tests"]
 python_files = ["test_*.py", "*_test.py"]
 addopts = "-ra --strict-markers --strict-config"
 markers = [
