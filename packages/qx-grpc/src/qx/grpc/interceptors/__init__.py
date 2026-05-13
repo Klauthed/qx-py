@@ -99,7 +99,7 @@ def _try_uuid(value: str | None) -> UUID | None:
 def _extract(metadata: Any, key: str) -> str | None:
     for k, v in metadata or ():
         if k.lower() == key:
-            return v
+            return str(v)
     return None
 
 

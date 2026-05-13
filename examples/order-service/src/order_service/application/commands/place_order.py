@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID  # noqa: TC003
 
 from pydantic import BaseModel
 from qx.core import Result
 from qx.cqrs import Command, command_handler
-from qx.db import DefaultOutboxRecorder, SessionFactory
 from qx.eventstore import EventStore
 
 from order_service.domain.aggregates.order import (
@@ -19,6 +18,7 @@ from order_service.domain.aggregates.order import (
 )
 
 if TYPE_CHECKING:
+    from qx.db import DefaultOutboxRecorder, SessionFactory
     from sqlalchemy import Table
 
 __all__ = ["PlaceOrderCommand", "PlaceOrderDto", "PlaceOrderHandler"]
@@ -70,7 +70,7 @@ class PlaceOrderHandler:
             total_cents=cmd.total_cents,
         )
         if order_result.is_failure:
-            return order_result.map(lambda _: PlaceOrderDto(order_id=order_result.value.id))  # type: ignore[union-attr]
+            return Result.failure(order_result.error)
 
         order = order_result.value
 

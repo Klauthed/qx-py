@@ -74,7 +74,7 @@ def list_dead_letters(
                     return
 
                 filters = ""
-                params: dict = {"limit": limit}
+                params: dict[str, object] = {"limit": limit}
                 if event_name:
                     filters = "WHERE event_name ILIKE :event_name"
                     params["event_name"] = f"%{event_name}%"
@@ -211,7 +211,7 @@ def replay(
         )
 
         # Reconstruct headers from stored headers dict, dropping None values.
-        stored_headers: dict = {}
+        stored_headers: dict[str, str] = {}
         if row["headers"]:
             raw = row["headers"] if isinstance(row["headers"], dict) else json.loads(row["headers"])
             stored_headers = {k: v for k, v in raw.items() if v is not None}

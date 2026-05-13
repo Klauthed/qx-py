@@ -32,8 +32,10 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import text
-
+from identity_service.domain.aggregates.user import User
+from identity_service.infrastructure import metadata as service_metadata
+from identity_service.infrastructure.persistence.user.mapping import users_table
+from identity_service.infrastructure.persistence.user.repository import UserRepository
 from qx.core import Identifier, RequestContext, request_scope, utcnow
 from qx.db import (
     RlsPolicyManager,
@@ -42,11 +44,7 @@ from qx.db import (
     open_rls_session,
     open_schema_session,
 )
-
-from identity_service.domain.aggregates.user import User
-from identity_service.infrastructure import metadata as service_metadata
-from identity_service.infrastructure.persistence.user.mapping import users_table
-from identity_service.infrastructure.persistence.user.repository import UserRepository
+from sqlalchemy import text
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
@@ -62,7 +60,7 @@ def _user_row(*, email: str, tenant_id: object) -> dict:
     return {
         "id": uuid4(),
         "email": email,
-        "name": email.split("@")[0].capitalize(),
+        "name": email.split("@", maxsplit=1)[0].capitalize(),
         "is_active": True,
         "version": 1,
         "tenant_id": tenant_id,
@@ -169,9 +167,7 @@ def test_rls_open_session_sets_guc(engine: AsyncEngine) -> None:
 
     async def _check() -> None:
         async with open_rls_session(sf, tid) as sess:
-            row = await sess.execute(
-                text("SELECT current_setting('app.current_tenant_id', true)")
-            )
+            row = await sess.execute(text("SELECT current_setting('app.current_tenant_id', true)"))
             assert row.scalar() == str(tid)
 
     asyncio.run(_check())
@@ -183,15 +179,13 @@ def test_rls_guc_does_not_leak_across_sessions(engine: AsyncEngine) -> None:
     sf = make_session_factory(engine)
 
     async def _check() -> None:
-        async with open_rls_session(sf, tid) as sess:
+        async with open_rls_session(sf, tid) as _:
             pass  # context exits → session.close() → transaction rolled back
 
         # A fresh plain connection should have no tenant GUC
         async with engine.connect() as conn:
             val = (
-                await conn.execute(
-                    text("SELECT current_setting('app.current_tenant_id', true)")
-                )
+                await conn.execute(text("SELECT current_setting('app.current_tenant_id', true)"))
             ).scalar()
         assert val in (None, ""), f"GUC leaked to next connection: {val!r}"
 
@@ -217,8 +211,12 @@ def test_rls_enforces_row_isolation(engine: AsyncEngine, rls_policy: None) -> No
     async def _run() -> None:
         # Insert one user per tenant as superuser (bypasses RLS — safe for setup)
         async with engine.begin() as conn:
-            await conn.execute(users_table.insert().values(_user_row(email="alice@a.com", tenant_id=tenant_a)))
-            await conn.execute(users_table.insert().values(_user_row(email="bob@b.com", tenant_id=tenant_b)))
+            await conn.execute(
+                users_table.insert().values(_user_row(email="alice@a.com", tenant_id=tenant_a))
+            )
+            await conn.execute(
+                users_table.insert().values(_user_row(email="bob@b.com", tenant_id=tenant_b))
+            )
 
         # open_rls_session already started an implicit transaction via set_config;
         # do NOT call sess.begin() here — just execute within the active transaction.
@@ -380,9 +378,7 @@ def test_schema_drop_removes_schema(
 # ---------------------------------------------------------------------------
 
 
-def test_schema_isolates_tenants(
-    engine: AsyncEngine, schema_manager: TenantSchemaManager
-) -> None:
+def test_schema_isolates_tenants(engine: AsyncEngine, schema_manager: TenantSchemaManager) -> None:
     """UserRepository in tenant A's schema cannot see tenant B's rows.
 
     open_schema_session executes ``SET search_path`` which triggers autobegin;
@@ -416,15 +412,13 @@ def test_schema_isolates_tenants(
             # Tenant A sees only Dana
             async with open_schema_session(sf, tenant_a) as sess:
                 emails_a = {
-                    r[0]
-                    for r in (await sess.execute(text("SELECT email FROM users"))).all()
+                    r[0] for r in (await sess.execute(text("SELECT email FROM users"))).all()
                 }
 
             # Tenant B sees only Evan
             async with open_schema_session(sf, tenant_b) as sess:
                 emails_b = {
-                    r[0]
-                    for r in (await sess.execute(text("SELECT email FROM users"))).all()
+                    r[0] for r in (await sess.execute(text("SELECT email FROM users"))).all()
                 }
 
             assert "dana@schema-a.com" in emails_a
@@ -448,7 +442,7 @@ def test_schema_search_path_resets_after_session_close(
     async def _run() -> None:
         await schema_manager.provision(tenant_id)
         try:
-            async with open_schema_session(sf, tenant_id) as sess:
+            async with open_schema_session(sf, tenant_id) as _:
                 pass  # immediately exit
 
             async with engine.connect() as conn:

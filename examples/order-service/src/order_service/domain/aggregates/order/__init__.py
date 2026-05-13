@@ -20,7 +20,7 @@ Integration events
 from __future__ import annotations
 
 from dataclasses import field
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from qx.core import DomainError, DomainEvent, IntegrationEvent, Result
@@ -55,7 +55,7 @@ class OrderPlaced(DomainEvent):
 
     order_id: UUID
     customer_id: UUID
-    items: list[dict]
+    items: list[dict[str, Any]]
     total_cents: int
 
 
@@ -101,7 +101,7 @@ class OrderItem:
         self.quantity = quantity
         self.unit_price_cents = unit_price_cents
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "sku": self.sku,
             "quantity": self.quantity,
@@ -109,7 +109,7 @@ class OrderItem:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> OrderItem:
+    def from_dict(cls, d: dict[str, Any]) -> OrderItem:
         return cls(sku=d["sku"], quantity=d["quantity"], unit_price_cents=d["unit_price_cents"])
 
 
@@ -122,7 +122,7 @@ class Order(EventSourcedAggregate[UUID]):
     """Event-sourced order aggregate."""
 
     customer_id: UUID = field(default_factory=uuid4)
-    items: list[dict] = field(default_factory=list)
+    items: list[dict[str, Any]] = field(default_factory=list)
     total_cents: int = field(default=0)
     status: str = field(default=OrderStatus.PENDING)
 
@@ -140,7 +140,9 @@ class Order(EventSourcedAggregate[UUID]):
     ) -> Result[Order]:
         if not items:
             return Result.failure(
-                DomainError(code="order.empty_items", message="An order must have at least one item."),  # noqa: E501
+                DomainError(
+                    code="order.empty_items", message="An order must have at least one item."
+                ),
             )
         if total_cents <= 0:
             return Result.failure(

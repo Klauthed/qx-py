@@ -64,10 +64,10 @@ async def test_place_order_returns_order_id_on_success() -> None:
 
     handler = PlaceOrderHandler(sf, table, snaps, outbox)
 
-    with patch("order_service.application.commands.place_order.EventStore") as MockStore:
+    with patch("order_service.application.commands.place_order.EventStore") as mock_store_cls:
         mock_store = MagicMock()
         mock_store.append = AsyncMock(return_value=Result.success(1))
-        MockStore.return_value = mock_store
+        mock_store_cls.return_value = mock_store
 
         result = await handler.handle(
             PlaceOrderCommand(
@@ -90,10 +90,10 @@ async def test_place_order_records_integration_event() -> None:
 
     handler = PlaceOrderHandler(sf, table, snaps, outbox)
 
-    with patch("order_service.application.commands.place_order.EventStore") as MockStore:
+    with patch("order_service.application.commands.place_order.EventStore") as mock_store_cls:
         mock_store = MagicMock()
         mock_store.append = AsyncMock(return_value=Result.success(1))
-        MockStore.return_value = mock_store
+        mock_store_cls.return_value = mock_store
 
         await handler.handle(
             PlaceOrderCommand(

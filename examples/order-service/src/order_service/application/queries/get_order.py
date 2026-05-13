@@ -8,10 +8,10 @@ from uuid import UUID
 from pydantic import BaseModel
 from qx.core import NotFoundError, Result
 from qx.cqrs import Query, query_handler
-from qx.db import SessionFactory
 from sqlalchemy import select
 
 if TYPE_CHECKING:
+    from qx.db import SessionFactory
     from sqlalchemy import Table
 
 __all__ = ["GetOrderDto", "GetOrderHandler", "GetOrderQuery"]
@@ -42,12 +42,16 @@ class GetOrderHandler:
     async def handle(self, query: GetOrderQuery) -> Result[GetOrderDto]:
         async with self._sf() as session:
             row = (
-                await session.execute(
-                    select(self._table).where(
-                        self._table.c.order_id == str(query.order_id),
-                    ),
+                (
+                    await session.execute(
+                        select(self._table).where(
+                            self._table.c.order_id == str(query.order_id),
+                        ),
+                    )
                 )
-            ).mappings().first()
+                .mappings()
+                .first()
+            )
 
         if row is None:
             return Result.failure(

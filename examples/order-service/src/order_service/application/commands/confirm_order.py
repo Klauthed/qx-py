@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID  # noqa: TC003
 
 from qx.core import NotFoundError, Result
 from qx.cqrs import Command, command_handler
-from qx.db import SessionFactory
 from qx.eventstore import EventStore
 
 from order_service.domain.aggregates.order import ORDER_AGGREGATE_TYPE, Order
 
 if TYPE_CHECKING:
+    from qx.db import SessionFactory
     from sqlalchemy import Table
 
 __all__ = ["ConfirmOrderCommand", "ConfirmOrderHandler"]

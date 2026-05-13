@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("order_service")
 
 
-def build_app() -> FastAPI:
+def build_app() -> FastAPI:  # noqa: PLR0915
     settings = QxSettings(app={"name": "order-service"})
     metrics, health = setup_observability(settings)
 

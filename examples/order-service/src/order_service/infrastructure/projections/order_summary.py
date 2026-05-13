@@ -16,10 +16,14 @@ from qx.projections import Projection
 from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from order_service.domain.aggregates.order import OrderCancelled, OrderConfirmed, OrderPlaced
-
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
+
+    from order_service.domain.aggregates.order import (
+        OrderCancelled,
+        OrderConfirmed,
+        OrderPlaced,
+    )
 
 __all__ = [
     "ORDER_SUMMARIES_TABLE_NAME",

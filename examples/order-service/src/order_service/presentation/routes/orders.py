@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from uuid import UUID
+from typing import Any
+from uuid import UUID  # noqa: TC003
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 from qx.cqrs import Mediator
-from qx.di import Inject
-from qx.http.exceptions import raise_for_error
+from qx.http import Inject, unwrap
 
 from order_service.application.commands.cancel_order import CancelOrderCommand
 from order_service.application.commands.confirm_order import ConfirmOrderCommand
@@ -34,7 +34,7 @@ class CancelOrderRequest(BaseModel):
 async def place_order(
     body: PlaceOrderRequest,
     mediator: Mediator = Inject(Mediator),  # noqa: B008
-) -> dict:
+) -> dict[str, Any]:
     result = await mediator.send(
         PlaceOrderCommand(
             customer_id=body.customer_id,
@@ -42,8 +42,8 @@ async def place_order(
             total_cents=body.total_cents,
         ),
     )
-    raise_for_error(result)
-    return {"order_id": str(result.value.order_id)}
+    dto = unwrap(result)
+    return {"order_id": str(dto.order_id)}
 
 
 @router.get("/{order_id}", response_model=GetOrderDto)
@@ -52,8 +52,7 @@ async def get_order(
     mediator: Mediator = Inject(Mediator),  # noqa: B008
 ) -> GetOrderDto:
     result = await mediator.send(GetOrderQuery(order_id=order_id))
-    raise_for_error(result)
-    return result.value
+    return unwrap(result)  # type: ignore[no-any-return]
 
 
 @router.post("/{order_id}/confirm", status_code=204)
@@ -62,7 +61,7 @@ async def confirm_order(
     mediator: Mediator = Inject(Mediator),  # noqa: B008
 ) -> None:
     result = await mediator.send(ConfirmOrderCommand(order_id=order_id))
-    raise_for_error(result)
+    unwrap(result)
 
 
 @router.post("/{order_id}/cancel", status_code=204)
@@ -72,4 +71,4 @@ async def cancel_order(
     mediator: Mediator = Inject(Mediator),  # noqa: B008
 ) -> None:
     result = await mediator.send(CancelOrderCommand(order_id=order_id, reason=body.reason))
-    raise_for_error(result)
+    unwrap(result)
