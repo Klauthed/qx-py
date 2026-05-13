@@ -47,7 +47,9 @@ def _find_compose_files() -> list[Path]:
                 break
 
     if base is None:
-        raise typer.BadParameter("Could not find a docker-compose.yaml. Run from a qx project tree.")
+        raise typer.BadParameter(
+            "Could not find a docker-compose.yaml. Run from a qx project tree."
+        )
 
     files = [base]
     override = cwd / "docker-compose.override.yaml"

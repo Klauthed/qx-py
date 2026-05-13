@@ -119,13 +119,9 @@ def test_generate_endpoint_renders_valid_python(tmp_path: Path) -> None:
     old = os.getcwd()
     try:
         os.chdir(project)
-        result = runner.invoke(
-            app, ["generate", "endpoint", "/orders", "--handler", "CreateOrder"]
-        )
+        result = runner.invoke(app, ["generate", "endpoint", "/orders", "--handler", "CreateOrder"])
         assert result.exit_code == 0, result.stdout
-        generated = (
-            project / "src" / "my_service" / "presentation" / "routes" / "create_order.py"
-        )
+        generated = project / "src" / "my_service" / "presentation" / "routes" / "create_order.py"
         assert generated.exists()
         ast.parse(generated.read_text())
     finally:

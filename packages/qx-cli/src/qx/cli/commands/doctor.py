@@ -21,9 +21,21 @@ app = typer.Typer()
 console = Console()
 
 _QX_PACKAGES = [
-    "qx-core", "qx-di", "qx-cqrs", "qx-db", "qx-http",
-    "qx-observability", "qx-events", "qx-worker", "qx-cache",
-    "qx-auth", "qx-grpc", "qx-search", "qx-testing", "qx-cli", "qx-devtools",
+    "qx-core",
+    "qx-di",
+    "qx-cqrs",
+    "qx-db",
+    "qx-http",
+    "qx-observability",
+    "qx-events",
+    "qx-worker",
+    "qx-cache",
+    "qx-auth",
+    "qx-grpc",
+    "qx-search",
+    "qx-testing",
+    "qx-cli",
+    "qx-devtools",
 ]
 
 _TOOL_FIXES: dict[str, str] = {
@@ -72,7 +84,9 @@ def _check_tools(failures: list[str], fix_commands: list[str]) -> None:
         path = shutil.which(tool)
         if path:
             try:
-                out = subprocess.run([tool, "--version"], capture_output=True, text=True, timeout=5, check=False)
+                out = subprocess.run(
+                    [tool, "--version"], capture_output=True, text=True, timeout=5, check=False
+                )
                 ver = (out.stdout or out.stderr).strip().splitlines()[0]
                 console.print(_ok(f"{tool}  [dim]{ver}[/dim]"))
             except Exception:
@@ -87,7 +101,9 @@ def _check_tools(failures: list[str], fix_commands: list[str]) -> None:
 
     if shutil.which("docker"):
         try:
-            result = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5, check=False)
+            result = subprocess.run(
+                ["docker", "info"], capture_output=True, text=True, timeout=5, check=False
+            )
             if result.returncode == 0:
                 console.print(_ok("Docker daemon running"))
             else:
@@ -137,9 +153,11 @@ def _check_connectivity() -> None:
     import os  # noqa: PLC0415
 
     console.print("\n[bold]Connectivity[/bold]")
-    defaults = {"DATABASE_URL": "postgresql://localhost:5432",
-                "REDIS_URL": "redis://localhost:6379",
-                "NATS_URL": "nats://localhost:4222"}
+    defaults = {
+        "DATABASE_URL": "postgresql://localhost:5432",
+        "REDIS_URL": "redis://localhost:6379",
+        "NATS_URL": "nats://localhost:4222",
+    }
     default_ports = {"postgres": 5432, "redis": 6379, "nats": 4222}
     labels = {"DATABASE_URL": "Postgres", "REDIS_URL": "Redis", "NATS_URL": "NATS"}
 
@@ -155,7 +173,9 @@ def _check_connectivity() -> None:
         if _tcp_reachable(host, port):
             console.print(_ok(f"{label}  {host}:{port}"))
         else:
-            console.print(_warn(f"{label}  {host}:{port} unreachable (is the stack running? qx dev up)"))
+            console.print(
+                _warn(f"{label}  {host}:{port} unreachable (is the stack running? qx dev up)")
+            )
 
 
 @app.callback(invoke_without_command=True)
@@ -188,7 +208,9 @@ def doctor(
             for cmd in fix_commands:
                 console.print(f"[dim]{cmd}[/dim]\n")
         else:
-            console.print("[dim]Run [bold]qx doctor --fix[/bold] for suggested remediation commands.[/dim]")
+            console.print(
+                "[dim]Run [bold]qx doctor --fix[/bold] for suggested remediation commands.[/dim]"
+            )
         raise typer.Exit(code=1)
     else:
         console.rule("[green]All checks passed[/green]")

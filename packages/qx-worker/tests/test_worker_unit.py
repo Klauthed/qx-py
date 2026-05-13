@@ -312,6 +312,7 @@ async def test_run_drains_inflight_before_exit() -> None:
     )
 
     with patch.object(runtime, "_handle_one", side_effect=_slow_handle):
+
         async def _stop_soon():
             await asyncio.sleep(0.02)  # stop before slow_msg finishes
             await runtime.stop()
