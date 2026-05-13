@@ -21,6 +21,7 @@ dependencies = [
     "qx-search",
     "qx-saga",
     "qx-eventstore",
+    "qx-projections",
     "qx-cli",
     "qx-testing",
     "qx-devtools",
@@ -47,6 +48,7 @@ qx-auth = { workspace = true }
 qx-search = { workspace = true }
 qx-saga = { workspace = true }
 qx-eventstore = { workspace = true }
+qx-projections = { workspace = true }
 qx-cli = { workspace = true }
 qx-testing = { workspace = true }
 qx-devtools = { workspace = true }
@@ -116,6 +118,7 @@ mypy_path = [
     "packages/qx-search/src",
     "packages/qx-saga/src",
     "packages/qx-eventstore/src",
+    "packages/qx-projections/src",
     "packages/qx-testing/src",
     "packages/qx-cli/src",
     "packages/qx-devtools/src",

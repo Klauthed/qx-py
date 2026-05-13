@@ -22,6 +22,7 @@ members = [
     "qx-grpc",
     "qx-http",
     "qx-observability",
+    "qx-projections",
     "qx-python-workspace",
     "qx-saga",
     "qx-search",
@@ -1606,6 +1607,23 @@ requires-dist = [
 ]
 
 [[package]]
+name = "qx-projections"
+version = "0.1.0"
+source = { editable = "packages/qx-projections" }
+dependencies = [
+    { name = "qx-core" },
+    { name = "qx-db" },
+    { name = "qx-eventstore" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "qx-core", editable = "packages/qx-core" },
+    { name = "qx-db", editable = "packages/qx-db" },
+    { name = "qx-eventstore", editable = "packages/qx-eventstore" },
+]
+
+[[package]]
 name = "qx-python-workspace"
 version = "0.1.0"
 source = { virtual = "." }
@@ -1624,6 +1642,7 @@ dependencies = [
     { name = "qx-grpc" },
     { name = "qx-http" },
     { name = "qx-observability" },
+    { name = "qx-projections" },
     { name = "qx-saga" },
     { name = "qx-search" },
     { name = "qx-testing" },
@@ -1658,6 +1677,7 @@ requires-dist = [
     { name = "qx-grpc", editable = "packages/qx-grpc" },
     { name = "qx-http", editable = "packages/qx-http" },
     { name = "qx-observability", editable = "packages/qx-observability" },
+    { name = "qx-projections", editable = "packages/qx-projections" },
     { name = "qx-saga", editable = "packages/qx-saga" },
     { name = "qx-search", editable = "packages/qx-search" },
     { name = "qx-testing", editable = "packages/qx-testing" },

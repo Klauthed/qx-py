@@ -30,6 +30,7 @@ PACKAGES=(
   qx-search
   qx-saga
   qx-eventstore
+  qx-projections
   qx-testing
   qx-cli
 )
