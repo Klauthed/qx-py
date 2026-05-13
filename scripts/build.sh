@@ -28,6 +28,7 @@ PACKAGES=(
   qx-auth
   qx-grpc
   qx-search
+  qx-saga
   qx-testing
   qx-cli
 )

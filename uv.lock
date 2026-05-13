@@ -22,6 +22,7 @@ members = [
     "qx-http",
     "qx-observability",
     "qx-python-workspace",
+    "qx-saga",
     "qx-search",
     "qx-testing",
     "qx-worker",
@@ -1606,6 +1607,7 @@ dependencies = [
     { name = "qx-grpc" },
     { name = "qx-http" },
     { name = "qx-observability" },
+    { name = "qx-saga" },
     { name = "qx-search" },
     { name = "qx-testing" },
     { name = "qx-worker" },
@@ -1638,6 +1640,7 @@ requires-dist = [
     { name = "qx-grpc", editable = "packages/qx-grpc" },
     { name = "qx-http", editable = "packages/qx-http" },
     { name = "qx-observability", editable = "packages/qx-observability" },
+    { name = "qx-saga", editable = "packages/qx-saga" },
     { name = "qx-search", editable = "packages/qx-search" },
     { name = "qx-testing", editable = "packages/qx-testing" },
     { name = "qx-worker", editable = "packages/qx-worker" },
@@ -1653,6 +1656,23 @@ dev = [
     { name = "pytest-cov", specifier = ">=5.0.0" },
     { name = "ruff", specifier = ">=0.6.0" },
     { name = "testcontainers", specifier = ">=4.8.0" },
+]
+
+[[package]]
+name = "qx-saga"
+version = "0.1.0"
+source = { editable = "packages/qx-saga" }
+dependencies = [
+    { name = "qx-core" },
+    { name = "qx-cqrs" },
+    { name = "qx-db" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "qx-core", editable = "packages/qx-core" },
+    { name = "qx-cqrs", editable = "packages/qx-cqrs" },
+    { name = "qx-db", editable = "packages/qx-db" },
 ]
 
 [[package]]

@@ -1,0 +1,20 @@
+[project]
+name = "qx-saga"
+version = "0.1.0"
+description = "Qx saga orchestrator: durable process managers for multi-step workflows across aggregates"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT" }
+authors = [{ name = "Qx Engineering" }]
+dependencies = [
+    "qx-core",
+    "qx-cqrs",
+    "qx-db",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qx"]
