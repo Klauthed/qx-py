@@ -1,6 +1,6 @@
 {
-  "name": "qx-python",
-  "displayName": "qx-python",
+  "name": "qx-py",
+  "displayName": "qx-py",
   "description": "Scaffolding, code generation, and dev orchestration for the qx Python framework.",
   "version": "0.1.0",
   "publisher": "klauthed",
