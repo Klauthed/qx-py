@@ -63,23 +63,19 @@ jobs:
           TAG: ${{ steps.tag.outputs.value }}
         run: |
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" &>/dev/null; then
+            cat > /tmp/release-notes.md << 'NOTES'
+          Pre-release distribution while PyPI uploads are rate-limited.
+
+          Install any package:
+            pip install "qx-core @ git+https://github.com/Klauthed/qx-py.git#subdirectory=packages/qx-core"
+
+          Or after downloading a wheel asset:
+            pip install qx_core-0.1.0-py3-none-any.whl
+          NOTES
             gh release create "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "Qx $TAG" \
-              --notes "Pre-release distribution while PyPI rate limits are in effect.
-
-## Install
-
-\`\`\`bash
-# Single package (direct wheel URL)
-pip install \"qx-core @ https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/qx_core-0.1.0-py3-none-any.whl\"
-
-# Or install any package directly from git (always latest master)
-pip install \"qx-core @ git+https://github.com/${GITHUB_REPOSITORY}.git#subdirectory=packages/qx-core\"
-\`\`\`
-
-## All packages
-Replace \`qx-core\` with any of: qx-auth, qx-cache, qx-cli, qx-cqrs, qx-db, qx-devtools, qx-di, qx-events, qx-eventstore, qx-flags, qx-grpc, qx-http, qx-observability, qx-projections, qx-py, qx-regions, qx-saga, qx-search, qx-testing, qx-worker." \
+              --notes-file /tmp/release-notes.md \
               --prerelease
             echo "Created release $TAG"
           else
