@@ -10,8 +10,10 @@ import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    import pytest
     from fastapi.testclient import TestClient
     from qx.testing.assertions import OutboxAssert
+    from sqlalchemy.ext.asyncio import AsyncEngine
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -181,3 +183,63 @@ def test_change_email_writes_outbox_event(client: TestClient, outbox: OutboxAsse
         )
 
     asyncio.run(_check())
+
+
+# ── profile ───────────────────────────────────────────────────────────────────
+
+
+def test_get_user_profile_returns_core_fields(client: TestClient) -> None:
+    """Default (flag off): profile returns id/email/name but omits is_active."""
+    data = create_user(client)
+    user_id = data["id"]
+
+    r = client.get(f"/v1/users/{user_id}/profile")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    assert body["data"]["id"] == user_id
+    assert body["data"]["email"] == "ada@example.com"
+    assert body["data"]["name"] == "Ada"
+    assert "is_active" not in body["data"]
+
+
+def test_get_user_profile_not_found_returns_404(client: TestClient) -> None:
+    r = client.get("/v1/users/00000000-0000-0000-0000-000000000002/profile")
+    assert r.status_code == 404
+    assert r.json()["success"] is False
+
+
+def test_get_user_profile_with_enhanced_flag_includes_is_active(
+    db_url: str,
+    engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Flag on: profile response includes is_active."""
+    import identity_service.main as main_mod  # noqa: PLC0415
+    from prometheus_client import CollectorRegistry  # noqa: PLC0415
+    from qx.flags import InMemoryProvider as _OrigProvider  # noqa: PLC0415
+    from qx.observability import setup_observability as _orig_obs  # noqa: PLC0415
+
+    fresh_registry = CollectorRegistry()
+
+    def _patched_obs(*args, **kwargs):  # type: ignore[no-untyped-def]
+        kwargs["metrics_registry"] = fresh_registry
+        return _orig_obs(*args, **kwargs)
+
+    def _enhanced_provider(_flags=None):  # type: ignore[no-untyped-def]
+        return _OrigProvider({"identity.enhanced-profile": True})
+
+    monkeypatch.setattr(main_mod, "setup_observability", _patched_obs)
+    monkeypatch.setattr(main_mod, "InMemoryProvider", _enhanced_provider)
+
+    from fastapi.testclient import TestClient  # noqa: PLC0415
+
+    with TestClient(main_mod.build_app()) as enhanced_client:
+        data = create_user(enhanced_client)
+        user_id = data["id"]
+
+        r = enhanced_client.get(f"/v1/users/{user_id}/profile")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["success"] is True
+        assert body["data"]["is_active"] is True
