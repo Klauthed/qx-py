@@ -1,0 +1,19 @@
+[project]
+name = "qx-eventstore"
+version = "0.1.0"
+description = "Qx event store: event-sourced aggregates with Postgres-backed event log and snapshots"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT" }
+authors = [{ name = "Qx Engineering" }]
+dependencies = [
+    "qx-core",
+    "qx-db",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qx"]

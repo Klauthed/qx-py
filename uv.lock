@@ -18,6 +18,7 @@ members = [
     "qx-devtools",
     "qx-di",
     "qx-events",
+    "qx-eventstore",
     "qx-grpc",
     "qx-http",
     "qx-observability",
@@ -1511,6 +1512,21 @@ requires-dist = [
 ]
 
 [[package]]
+name = "qx-eventstore"
+version = "0.1.0"
+source = { editable = "packages/qx-eventstore" }
+dependencies = [
+    { name = "qx-core" },
+    { name = "qx-db" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "qx-core", editable = "packages/qx-core" },
+    { name = "qx-db", editable = "packages/qx-db" },
+]
+
+[[package]]
 name = "qx-grpc"
 version = "0.1.0"
 source = { editable = "packages/qx-grpc" }
@@ -1604,6 +1620,7 @@ dependencies = [
     { name = "qx-devtools" },
     { name = "qx-di" },
     { name = "qx-events" },
+    { name = "qx-eventstore" },
     { name = "qx-grpc" },
     { name = "qx-http" },
     { name = "qx-observability" },
@@ -1637,6 +1654,7 @@ requires-dist = [
     { name = "qx-devtools", editable = "packages/qx-devtools" },
     { name = "qx-di", editable = "packages/qx-di" },
     { name = "qx-events", editable = "packages/qx-events" },
+    { name = "qx-eventstore", editable = "packages/qx-eventstore" },
     { name = "qx-grpc", editable = "packages/qx-grpc" },
     { name = "qx-http", editable = "packages/qx-http" },
     { name = "qx-observability", editable = "packages/qx-observability" },

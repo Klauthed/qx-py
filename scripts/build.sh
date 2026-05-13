@@ -29,6 +29,7 @@ PACKAGES=(
   qx-grpc
   qx-search
   qx-saga
+  qx-eventstore
   qx-testing
   qx-cli
 )
