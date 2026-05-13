@@ -17,11 +17,11 @@ jobs:
       tag: ${{ steps.tag.outputs.value }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.14"
           enable-cache: true
