@@ -31,6 +31,7 @@ from qx.db.pagination import (
     encode_cursor,
 )
 from qx.db.repository import Repository
+from qx.db.tenancy import TenantSchemaManager, open_schema_session
 from qx.db.uow import EventDispatcher, UnitOfWork
 
 __version__ = "0.1.0"
@@ -46,6 +47,8 @@ __all__ = [
     # Repository
     "Repository",
     "SessionFactory",
+    # Schema-per-tenant
+    "TenantSchemaManager",
     # UoW
     "UnitOfWork",
     "__version__",
@@ -60,6 +63,7 @@ __all__ = [
     "make_metadata",
     "make_registry",
     "make_session_factory",
+    "open_schema_session",
     "open_session",
     "standard_audit_columns",
     "uuid_column",
