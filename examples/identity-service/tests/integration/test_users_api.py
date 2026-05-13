@@ -217,6 +217,7 @@ def test_get_user_profile_with_enhanced_flag_includes_is_active(
     """Flag on: profile response includes is_active."""
     import identity_service.main as main_mod  # noqa: PLC0415
     from prometheus_client import CollectorRegistry  # noqa: PLC0415
+    from qx.flags import InMemoryFlag  # noqa: PLC0415
     from qx.flags import InMemoryProvider as _OrigProvider  # noqa: PLC0415
     from qx.observability import setup_observability as _orig_obs  # noqa: PLC0415
 
@@ -227,7 +228,9 @@ def test_get_user_profile_with_enhanced_flag_includes_is_active(
         return _orig_obs(*args, **kwargs)
 
     def _enhanced_provider(_flags=None):  # type: ignore[no-untyped-def]
-        return _OrigProvider({"identity.enhanced-profile": True})
+        return _OrigProvider({
+            "identity.enhanced-profile": InMemoryFlag("on", {"on": True, "off": False}),
+        })
 
     monkeypatch.setattr(main_mod, "setup_observability", _patched_obs)
     monkeypatch.setattr(main_mod, "InMemoryProvider", _enhanced_provider)

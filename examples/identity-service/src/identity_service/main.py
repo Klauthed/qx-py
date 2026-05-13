@@ -23,7 +23,7 @@ from qx.db import (
 from qx.db.outbox import DefaultOutboxRecorder
 from qx.di import Container
 from qx.events import EventRegistry, MediatorEventDispatcher
-from qx.flags import FlagClient, InMemoryProvider
+from qx.flags import FlagClient, InMemoryFlag, InMemoryProvider
 from qx.http import setup_qx_app
 from qx.observability import setup_observability
 from qx.regions import RegionConfig, RegionRouter, StaticRegionResolver
@@ -72,9 +72,12 @@ def build_app() -> FastAPI:
     container.register_scoped(UnitOfWork, _uow_factory)
 
     # ---- Feature flags (InMemoryProvider for dev; swap for OpenFeature in prod) ----
-    flag_provider = InMemoryProvider({"identity.enhanced-profile": False})
-    flags = FlagClient(flag_provider)
-    container.register_instance(FlagClient, flags)
+    FlagClient.configure(
+        InMemoryProvider({
+            "identity.enhanced-profile": InMemoryFlag("off", {"on": True, "off": False}),
+        })
+    )
+    container.register_instance(FlagClient, FlagClient())
 
     # ---- Region routing (StaticResolver for dev; swap DbRegionResolver in prod) ----
     region_config = RegionConfig()  # reads QX_REGION__NAME + QX_REGION__URLS from env
