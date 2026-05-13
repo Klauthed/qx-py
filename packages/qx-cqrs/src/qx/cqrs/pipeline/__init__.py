@@ -99,24 +99,54 @@ class BehaviorChain:
     """Compose behaviors into a single callable around a terminal handler.
 
     Built inside-out: the last behavior in the list is the innermost wrapper.
+
+    When ``trace_behaviors=True`` (requires ``opentelemetry`` to be installed),
+    each behavior's ``handle()`` call is wrapped in a child OTel span named
+    ``qx.behavior.<ClassName>``.  This produces a waterfall in Tempo/Jaeger
+    showing per-behavior latency without any changes to individual behaviors.
     """
 
     def __init__(
         self,
         behaviors: tuple[Behavior, ...],
         terminal: Callable[[Any], Awaitable[Result[Any]]],
+        *,
+        trace_behaviors: bool = False,
     ) -> None:
         self._behaviors = behaviors
         self._terminal = terminal
+        self._trace_behaviors = trace_behaviors
 
     async def execute(self, message: Any) -> Result[Any]:
         next_callable: Next = self._terminal
         for behavior in reversed(self._behaviors):
             current = behavior
             previous = next_callable
+            behavior_name = type(behavior).__name__
 
-            async def runner(msg: Any, b: Behavior = current, n: Next = previous) -> Result[Any]:
-                return await b.handle(msg, n)
+            if self._trace_behaviors:
+
+                async def runner(
+                    msg: Any,
+                    b: Behavior = current,
+                    n: Next = previous,
+                    bname: str = behavior_name,
+                ) -> Result[Any]:
+                    try:
+                        from opentelemetry import trace as _otel  # noqa: PLC0415
+
+                        tracer = _otel.get_tracer("qx.cqrs")
+                        with tracer.start_as_current_span(f"qx.behavior.{bname}"):
+                            return await b.handle(msg, n)
+                    except ImportError:
+                        return await b.handle(msg, n)
+
+            else:
+
+                async def runner(  # type: ignore[misc]
+                    msg: Any, b: Behavior = current, n: Next = previous
+                ) -> Result[Any]:
+                    return await b.handle(msg, n)
 
             next_callable = runner
         return await next_callable(message)
@@ -125,9 +155,11 @@ class BehaviorChain:
 def compose(
     behaviors: tuple[Behavior, ...],
     terminal: Callable[[Any], Awaitable[Result[Any]]],
+    *,
+    trace_behaviors: bool = False,
 ) -> Callable[[Any], Awaitable[Result[Any]]]:
     """Build a behavior chain and return its ``execute`` method."""
-    return BehaviorChain(behaviors, terminal).execute
+    return BehaviorChain(behaviors, terminal, trace_behaviors=trace_behaviors).execute
 
 
 # ---------------------------------------------------------------------------

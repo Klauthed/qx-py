@@ -265,6 +265,173 @@ def _make_manager(
     return manager, mediator
 
 
+# ---- compensate() retry ----
+
+
+async def test_compensate_retries_on_transient_failure() -> None:
+    """compensate() is retried up to max_attempts on exception."""
+    calls: list[int] = []
+
+    class RetrySaga(Saga[OrderFulfillmentState]):
+        state_type = OrderFulfillmentState
+
+        @on(OrderPlaced)
+        async def start(self, ev: OrderPlaced) -> None:
+            raise RuntimeError("transient failure")
+
+        async def compensate(self) -> None:
+            calls.append(len(calls))
+            if len(calls) < 3:
+                raise RuntimeError("compensate also failed")
+            self.state.compensated = True
+
+    instance = _make_instance(status="running")
+    store = _mock_store(existing=instance)
+    mediator = AsyncMock()
+    manager = SagaManager(
+        mediator=mediator,
+        table=MagicMock(),
+        compensate_max_attempts=3,
+        compensate_base_delay_seconds=0.0,
+    )
+    manager.register(RetrySaga, correlation_key=lambda ev: getattr(ev, "order_id", None))
+
+    with patch_store(manager, store):
+        await manager.handle(OrderPlaced(order_id="o1"), session=AsyncMock())
+
+    assert len(calls) == 3
+    store.save.assert_awaited_once()
+    _, kwargs = store.save.call_args
+    assert kwargs["new_status"] == "compensated"
+
+
+async def test_compensate_retry_exhausted_still_marks_compensated() -> None:
+    """Even if all compensate() attempts fail, the saga is marked compensated."""
+
+    class AlwaysFailSaga(Saga[OrderFulfillmentState]):
+        state_type = OrderFulfillmentState
+
+        @on(OrderPlaced)
+        async def start(self, ev: OrderPlaced) -> None:
+            raise RuntimeError("handler failure")
+
+        async def compensate(self) -> None:
+            raise RuntimeError("compensation also explodes")
+
+    instance = _make_instance(status="running")
+    store = _mock_store(existing=instance)
+    mediator = AsyncMock()
+    manager = SagaManager(
+        mediator=mediator,
+        table=MagicMock(),
+        compensate_max_attempts=2,
+        compensate_base_delay_seconds=0.0,
+    )
+    manager.register(AlwaysFailSaga, correlation_key=lambda ev: getattr(ev, "order_id", None))
+
+    with patch_store(manager, store):
+        await manager.handle(OrderPlaced(order_id="o1"), session=AsyncMock())
+
+    store.save.assert_awaited_once()
+    _, kwargs = store.save.call_args
+    assert kwargs["new_status"] == "compensated"
+
+
+# ---- timeout concurrency lock ----
+
+
+async def test_tick_timeouts_skips_instance_when_lock_not_acquired() -> None:
+    """When the distributed lock is already held, the instance is skipped."""
+    from contextlib import asynccontextmanager  # noqa: PLC0415
+
+    @asynccontextmanager
+    async def _not_held():
+        yield False  # lock not acquired
+
+    lock = MagicMock()
+    lock.acquired = MagicMock(return_value=_not_held())
+
+    def _lock_factory(key: str) -> object:
+        return lock
+
+    instance = _make_instance(
+        status="running", state={"order_id": "", "payment_id": "", "compensated": False}
+    )
+    store = _mock_store(existing=instance)
+    store.load_timed_out = AsyncMock(return_value=[instance])
+
+    mediator = AsyncMock()
+    manager = SagaManager(mediator=mediator, table=MagicMock(), lock_factory=_lock_factory)
+    manager.register(
+        OrderFulfillmentSaga,
+        correlation_key=lambda ev: getattr(ev, "order_id", None),
+    )
+
+    with patch_store(manager, store), patch("qx.saga.manager.SagaStore") as mock_cls:
+        mock_cls.return_value = store
+        await manager.tick_timeouts(session=AsyncMock())
+
+    store.save.assert_not_awaited()
+
+
+async def test_tick_timeouts_processes_instance_when_lock_acquired() -> None:
+    """When the lock is acquired, the timeout handler runs and state is saved."""
+    from contextlib import asynccontextmanager  # noqa: PLC0415
+
+    @asynccontextmanager
+    async def _held():
+        yield True  # lock acquired
+
+    lock = MagicMock()
+    lock.acquired = MagicMock(return_value=_held())
+
+    def _lock_factory(key: str) -> object:
+        return lock
+
+    instance = _make_instance(
+        status="running",
+        state={"order_id": "o1", "payment_id": "", "compensated": False},
+    )
+    store = _mock_store(existing=instance)
+    store.load_timed_out = AsyncMock(return_value=[instance])
+
+    mediator = AsyncMock()
+    manager = SagaManager(mediator=mediator, table=MagicMock(), lock_factory=_lock_factory)
+    manager.register(
+        OrderFulfillmentSaga,
+        correlation_key=lambda ev: getattr(ev, "order_id", None),
+    )
+
+    with patch("qx.saga.manager.SagaStore") as mock_cls:
+        mock_cls.return_value = store
+        await manager.tick_timeouts(session=AsyncMock())
+
+    store.save.assert_awaited_once()
+
+
+async def test_tick_timeouts_no_lock_factory_processes_directly() -> None:
+    """Without a lock_factory, instances are processed without locking."""
+    instance = _make_instance(
+        status="running",
+        state={"order_id": "o1", "payment_id": "", "compensated": False},
+    )
+    store = _mock_store(existing=instance)
+    store.load_timed_out = AsyncMock(return_value=[instance])
+
+    mediator = AsyncMock()
+    manager = SagaManager(mediator=mediator, table=MagicMock())  # no lock_factory
+    manager.register(
+        OrderFulfillmentSaga,
+        correlation_key=lambda ev: getattr(ev, "order_id", None),
+    )
+
+    with patch("qx.saga.manager.SagaStore") as mock_cls:
+        mock_cls.return_value = store
+        await manager.tick_timeouts(session=AsyncMock())
+
+    store.save.assert_awaited_once()
+
+
 def patch_store(manager: SagaManager, store: AsyncMock) -> object:
     """Context manager that injects a mock store into manager._dispatch_to."""
 

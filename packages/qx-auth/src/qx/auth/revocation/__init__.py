@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from qx.cache import CacheFacade
+    from qx.cache import Cache as CacheFacade
 
 __all__ = ["RedisRevocationStore"]
 
@@ -39,7 +39,7 @@ class RedisRevocationStore:
 
     async def revoke(self, jti: str, *, ttl_seconds: int) -> None:
         """Add ``jti`` to the deny-list for ``ttl_seconds``."""
-        await self._cache.set_json(self._key(jti), {"revoked": True}, ttl=ttl_seconds)
+        await self._cache.set_json(self._key(jti), {"revoked": True}, ttl_seconds=ttl_seconds)
 
     async def is_revoked(self, jti: str) -> bool:
         """Return ``True`` if ``jti`` is in the deny-list."""

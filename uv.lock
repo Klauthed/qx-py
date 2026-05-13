@@ -9,6 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "identity-service",
+    "order-service",
     "qx-auth",
     "qx-cache",
     "qx-cli",
@@ -1065,6 +1066,54 @@ wheels = [
 ]
 
 [[package]]
+name = "order-service"
+version = "0.1.0"
+source = { editable = "examples/order-service" }
+dependencies = [
+    { name = "qx-auth" },
+    { name = "qx-core" },
+    { name = "qx-cqrs" },
+    { name = "qx-db" },
+    { name = "qx-di" },
+    { name = "qx-events" },
+    { name = "qx-eventstore" },
+    { name = "qx-http" },
+    { name = "qx-observability" },
+    { name = "qx-projections" },
+    { name = "qx-saga" },
+    { name = "qx-worker" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "qx-testing" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
+    { name = "qx-auth", editable = "packages/qx-auth" },
+    { name = "qx-core", editable = "packages/qx-core" },
+    { name = "qx-cqrs", editable = "packages/qx-cqrs" },
+    { name = "qx-db", editable = "packages/qx-db" },
+    { name = "qx-di", editable = "packages/qx-di" },
+    { name = "qx-events", editable = "packages/qx-events" },
+    { name = "qx-eventstore", editable = "packages/qx-eventstore" },
+    { name = "qx-http", editable = "packages/qx-http" },
+    { name = "qx-observability", editable = "packages/qx-observability" },
+    { name = "qx-projections", editable = "packages/qx-projections" },
+    { name = "qx-saga", editable = "packages/qx-saga" },
+    { name = "qx-testing", marker = "extra == 'dev'", editable = "packages/qx-testing" },
+    { name = "qx-worker", editable = "packages/qx-worker" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "packaging"
 version = "26.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1407,6 +1456,7 @@ version = "0.2.0"
 source = { editable = "packages/qx-cli" }
 dependencies = [
     { name = "jinja2" },
+    { name = "nats-py" },
     { name = "pyyaml" },
     { name = "qx-core" },
     { name = "rich" },
@@ -1416,6 +1466,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "jinja2", specifier = ">=3.1.0" },
+    { name = "nats-py", specifier = ">=2.9.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "qx-core", editable = "packages/qx-core" },
     { name = "rich", specifier = ">=13.0.0" },
@@ -1711,6 +1762,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "identity-service" },
+    { name = "order-service" },
     { name = "qx-auth" },
     { name = "qx-cache" },
     { name = "qx-cli" },
@@ -1749,6 +1801,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "identity-service", editable = "examples/identity-service" },
+    { name = "order-service", editable = "examples/order-service" },
     { name = "qx-auth", editable = "packages/qx-auth" },
     { name = "qx-cache", editable = "packages/qx-cache" },
     { name = "qx-cli", editable = "packages/qx-cli" },
@@ -1884,6 +1937,7 @@ dependencies = [
     { name = "nats-py" },
     { name = "qx-core" },
     { name = "qx-cqrs" },
+    { name = "qx-db" },
     { name = "qx-di" },
     { name = "qx-events" },
     { name = "qx-observability" },
@@ -1894,6 +1948,7 @@ requires-dist = [
     { name = "nats-py", specifier = ">=2.9.0" },
     { name = "qx-core", editable = "packages/qx-core" },
     { name = "qx-cqrs", editable = "packages/qx-cqrs" },
+    { name = "qx-db", editable = "packages/qx-db" },
     { name = "qx-di", editable = "packages/qx-di" },
     { name = "qx-events", editable = "packages/qx-events" },
     { name = "qx-observability", editable = "packages/qx-observability" },

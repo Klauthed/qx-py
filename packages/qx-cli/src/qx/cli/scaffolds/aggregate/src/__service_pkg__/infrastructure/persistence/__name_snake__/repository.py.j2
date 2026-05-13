@@ -7,6 +7,8 @@ ad-hoc queries.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from qx.db import Repository
 
 from {{ service_pkg }}.domain.aggregates.{{ name_snake }} import {{ name_pascal }}
@@ -16,6 +18,5 @@ from {{ service_pkg }}.infrastructure.persistence.{{ name_snake }}.mapping impor
 class {{ name_pascal }}Repository(Repository[{{ name_pascal }}]):
     entity_cls = {{ name_pascal }}
     table = {{ name_snake }}_table
-    # Permit filtering only on these fields; everything else is rejected at the boundary.
-    filterable_fields: set[str] = set()
-    sortable_fields: set[str] = {"created_at"}
+    filterable_fields: ClassVar[set[str]] = set()
+    sortable_fields: ClassVar[set[str]] = {"created_at"}

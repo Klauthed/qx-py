@@ -178,10 +178,45 @@ def _check_connectivity() -> None:
             )
 
 
+_MIN_VERSIONS: dict[str, str] = {
+    "qx-core": "0.2.0",
+    "qx-cqrs": "0.2.0",
+    "qx-db": "0.2.0",
+    "qx-http": "0.2.0",
+    "qx-events": "0.2.0",
+    "qx-worker": "0.2.0",
+    "qx-cli": "0.2.0",
+}
+
+
+def _check_version_mismatches() -> None:
+    from importlib.metadata import PackageNotFoundError, version  # noqa: PLC0415
+
+    from packaging.version import Version  # noqa: PLC0415
+
+    console.print("\n[bold]Version requirements[/bold]")
+    found_mismatch = False
+    for pkg, min_ver in _MIN_VERSIONS.items():
+        try:
+            installed = version(pkg)
+            if Version(installed) < Version(min_ver):
+                console.print(_fail(f"{pkg} {installed} < {min_ver} (minimum required)"))
+                found_mismatch = True
+            else:
+                console.print(_ok(f"{pkg} {installed} >= {min_ver}"))
+        except PackageNotFoundError:
+            pass  # already reported in _check_packages
+
+    if not found_mismatch:
+        console.print(_ok("All installed qx packages meet minimum version requirements"))
+
+
 @app.callback(invoke_without_command=True)
 def doctor(
-    connectivity: bool = typer.Option(
-        False, "--connectivity", "-c", help="Also probe Postgres / Redis / NATS TCP ports."
+    no_connectivity: bool = typer.Option(
+        False,
+        "--no-connectivity",
+        help="Skip Postgres / Redis / NATS TCP reachability probes.",
     ),
     fix: bool = typer.Option(
         False, "--fix", help="Print shell commands to resolve detected issues."
@@ -196,8 +231,9 @@ def doctor(
     _check_tools(failures, fix_commands)
     _check_packages()
     _check_env()
+    _check_version_mismatches()
 
-    if connectivity:
+    if not no_connectivity:
         _check_connectivity()
 
     console.print()

@@ -11,6 +11,10 @@ Subcommands::
     qx dev up                      # start docker-compose stack
     qx dev down                    # stop the stack
     qx doctor                      # check dev environment health
+    qx projections status          # show projection checkpoint positions + lag
+    qx projections rebuild NAME    # reset checkpoint and trigger replay
+    qx dlq list                    # list recent dead-letter messages
+    qx dlq replay <id>             # re-publish a dead letter to its original NATS subject
     qx version                     # print framework version
 
 Invoke as ``qx`` once the package is installed; ``uv run qx ...``
@@ -20,7 +24,7 @@ during development.
 from __future__ import annotations
 
 import typer
-from qx.cli.commands import dev, doctor, generate, new
+from qx.cli.commands import dev, dlq, doctor, generate, new, projections
 from rich.console import Console
 
 console = Console()
@@ -40,6 +44,16 @@ app.add_typer(
 )
 app.add_typer(dev.app, name="dev", help="Local development orchestration.")
 app.add_typer(doctor.app, name="doctor", help="Check development environment health.")
+app.add_typer(
+    projections.app,
+    name="projections",
+    help="Inspect and manage projection checkpoints.",
+)
+app.add_typer(
+    dlq.app,
+    name="dlq",
+    help="Inspect and replay dead-letter queue messages.",
+)
 
 
 @app.command()

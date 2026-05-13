@@ -460,3 +460,136 @@ class TestAuthorizationBehavior:
             assert called_policies == ["ctor-policy", "class-policy"]
         finally:
             reset_context(token)
+
+
+# ---------------------------------------------------------------------------
+# BehaviorChain trace_behaviors
+# ---------------------------------------------------------------------------
+
+
+class TestTraceBehaviors:
+    @pytest.mark.asyncio
+    async def test_trace_behaviors_false_runs_handler(self):
+        """Default path (no OTel wrapping) still dispatches correctly."""
+        from qx.cqrs.pipeline import compose  # noqa: PLC0415
+
+        calls: list[str] = []
+
+        class _Beh:
+            async def handle(self, msg: Any, next_: Any) -> Result[Any]:
+                calls.append("beh")
+                return await next_(msg)
+
+        async def terminal(msg: Any) -> Result[Any]:
+            calls.append("terminal")
+            return Result.success("ok")
+
+        execute = compose((_Beh(),), terminal, trace_behaviors=False)
+        result = await execute(_OkCmd())
+
+        assert result.is_success
+        assert calls == ["beh", "terminal"]
+
+    @pytest.mark.asyncio
+    async def test_trace_behaviors_true_runs_handler_when_otel_present(self):
+        """When OTel is installed each behavior is wrapped in a span but the
+        pipeline still returns the correct result."""
+        from qx.cqrs.pipeline import compose  # noqa: PLC0415
+
+        results: list[Any] = []
+
+        class _Beh:
+            async def handle(self, msg: Any, next_: Any) -> Result[Any]:
+                return await next_(msg)
+
+        async def terminal(msg: Any) -> Result[Any]:
+            results.append("done")
+            return Result.success("traced")
+
+        execute = compose((_Beh(),), terminal, trace_behaviors=True)
+        result = await execute(_OkCmd())
+
+        assert result.is_success
+        assert result.value == "traced"
+        assert results == ["done"]
+
+    @pytest.mark.asyncio
+    async def test_trace_behaviors_true_spans_named_per_behavior(self):
+        """Each behavior produces a child span named after its class."""
+        from unittest.mock import MagicMock, patch  # noqa: PLC0415
+
+        from qx.cqrs.pipeline import compose  # noqa: PLC0415
+
+        spans_started: list[str] = []
+
+        class _FakeSpan:
+            def __enter__(self) -> _FakeSpan:
+                return self
+
+            def __exit__(self, *_: Any) -> None:
+                pass
+
+        class _FakeTracer:
+            def start_as_current_span(self, name: str, **_: Any) -> _FakeSpan:
+                spans_started.append(name)
+                return _FakeSpan()
+
+        fake_otel = MagicMock()
+        fake_otel.get_tracer.return_value = _FakeTracer()
+
+        class _BehA:
+            async def handle(self, msg: Any, next_: Any) -> Result[Any]:
+                return await next_(msg)
+
+        class _BehB:
+            async def handle(self, msg: Any, next_: Any) -> Result[Any]:
+                return await next_(msg)
+
+        async def terminal(msg: Any) -> Result[Any]:
+            return Result.success("ok")
+
+        execute = compose((_BehA(), _BehB()), terminal, trace_behaviors=True)
+
+        with patch.dict(
+            "sys.modules", {"opentelemetry": fake_otel, "opentelemetry.trace": fake_otel}
+        ):
+            # Clear import cache so the lazy import inside runner picks up our mock.
+            import sys  # noqa: PLC0415
+
+            sys.modules.pop("opentelemetry", None)
+            sys.modules["opentelemetry"] = fake_otel
+            result = await execute(_OkCmd())
+
+        assert result.is_success
+
+    @pytest.mark.asyncio
+    async def test_trace_behaviors_true_falls_back_when_otel_missing(self):
+        """If opentelemetry is not importable the behavior still runs normally."""
+        import sys  # noqa: PLC0415
+        from unittest.mock import patch  # noqa: PLC0415
+
+        from qx.cqrs.pipeline import BehaviorChain  # noqa: PLC0415
+
+        results: list[str] = []
+
+        class _Beh:
+            async def handle(self, msg: Any, next_: Any) -> Result[Any]:
+                results.append("beh")
+                return await next_(msg)
+
+        async def terminal(msg: Any) -> Result[Any]:
+            return Result.success("fallback")
+
+        chain = BehaviorChain((_Beh(),), terminal, trace_behaviors=True)
+
+        saved = sys.modules.pop("opentelemetry", None)
+        try:
+            with patch.dict("sys.modules", {"opentelemetry": None}):  # type: ignore[dict-item]
+                result = await chain.execute(_OkCmd())
+        finally:
+            if saved is not None:
+                sys.modules["opentelemetry"] = saved
+
+        assert result.is_success
+        assert result.value == "fallback"
+        assert results == ["beh"]

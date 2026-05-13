@@ -25,6 +25,8 @@ import time
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+from opentelemetry import trace as otel_trace
+from opentelemetry.propagate import extract as otel_extract
 from qx.core import RequestContext, current_context, request_scope
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
@@ -72,28 +74,45 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         correlation_id = _try_uuid(request.headers.get(HEADER_CORRELATION)) or uuid4()
         request_id = _try_uuid(request.headers.get(HEADER_REQUEST)) or uuid4()
         tenant_id = _try_uuid(request.headers.get(HEADER_TENANT))
-        traceparent = request.headers.get(HEADER_TRACE)
 
-        # Trace_id from W3C traceparent is the middle field (16 bytes hex).
-        trace_id: str | None = None
-        if traceparent:
-            parts = traceparent.split("-")
-            if len(parts) == 4:
-                trace_id = parts[1]
+        # Extract W3C trace context from incoming headers so this span becomes
+        # a child of the upstream span (gateway, CDN, client SDK, etc.).
+        parent_ctx = otel_extract(dict(request.headers))
 
-        ctx = RequestContext(
-            request_id=request_id,
-            correlation_id=correlation_id,
-            trace_id=trace_id,
-            tenant_id=tenant_id,
+        tracer = otel_trace.get_tracer("qx.http")
+        with tracer.start_as_current_span(
+            "http.request",
+            context=parent_ctx,
+            kind=otel_trace.SpanKind.SERVER,
             attributes={
                 "http.method": request.method,
-                "http.path": request.url.path,
-                "http.client": request.client.host if request.client else None,
+                "http.target": str(request.url.path),
+                "http.scheme": request.url.scheme,
+                "http.host": request.url.hostname or "",
+                "net.peer.ip": request.client.host if request.client else "",
             },
-        )
-        with request_scope(ctx):
-            response = await call_next(request)
+        ) as span:
+            # Derive trace_id from the active OTel span so RequestContext
+            # always reflects the real distributed trace, not a manual parse.
+            span_ctx = span.get_span_context()
+            trace_id = format(span_ctx.trace_id, "032x") if span_ctx and span_ctx.is_valid else None
+
+            ctx = RequestContext(
+                request_id=request_id,
+                correlation_id=correlation_id,
+                trace_id=trace_id,
+                tenant_id=tenant_id,
+                attributes={
+                    "http.method": request.method,
+                    "http.path": request.url.path,
+                    "http.client": request.client.host if request.client else None,
+                },
+            )
+            with request_scope(ctx):
+                response = await call_next(request)
+
+            span.set_attribute("http.status_code", response.status_code)
+
         response.headers[HEADER_CORRELATION] = str(correlation_id)
         response.headers[HEADER_REQUEST] = str(request_id)
         return response

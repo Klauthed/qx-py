@@ -60,7 +60,10 @@ class TenantSchemaManager:
         schema = self.schema_name(tenant_id)
         async with self._engine.begin() as conn:
             await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
-            await conn.execute(text(f'SET search_path TO "{schema}", public'))
+            # Restrict search_path to only the tenant schema so that
+            # metadata.create_all checks for tables there and does not find
+            # (and therefore skip) tables that already exist in public.
+            await conn.execute(text(f'SET LOCAL search_path TO "{schema}"'))
             await conn.run_sync(self._metadata.create_all)
 
     async def drop(self, tenant_id: UUID | str) -> None:

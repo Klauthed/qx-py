@@ -46,7 +46,7 @@ async def test_provision_creates_schema_and_tables() -> None:
 
     sql_calls = _sql_texts(conn.execute)
     assert any("CREATE SCHEMA IF NOT EXISTS" in c and SCHEMA in c for c in sql_calls)
-    assert any("SET search_path" in c and SCHEMA in c for c in sql_calls)
+    assert any("SET LOCAL search_path" in c and SCHEMA in c for c in sql_calls)
     conn.run_sync.assert_called_once_with(metadata.create_all)
 
 

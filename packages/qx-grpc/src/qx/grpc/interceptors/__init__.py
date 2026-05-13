@@ -97,7 +97,7 @@ def _try_uuid(value: str | None) -> UUID | None:
 
 
 def _extract(metadata: Any, key: str) -> str | None:
-    for k, v in (metadata or ()):
+    for k, v in metadata or ():
         if k.lower() == key:
             return v
     return None
@@ -241,10 +241,58 @@ class _StatusProxy:
 
 
 class MetricsInterceptor(ServerInterceptor):  # type: ignore[misc]
-    """Record framework metrics per RPC (all handler shapes)."""
+    """Record framework metrics per RPC (all handler shapes).
 
-    def __init__(self, metrics: Any) -> None:
+    Args:
+        metrics: The framework ``Metrics`` bundle.
+        per_method_buckets: Optional mapping of RPC method name (e.g.
+            ``"/mypackage.MyService/MyMethod"``) to a tuple of histogram
+            bucket boundaries in seconds.  Methods not present here use
+            the shared ``http_request_duration`` histogram from ``metrics``.
+            Buckets are applied once, on the first call for that method.
+
+    Example::
+
+        MetricsInterceptor(
+            metrics,
+            per_method_buckets={
+                "/order.OrderService/PlaceOrder": (0.01, 0.05, 0.1, 0.5, 1.0, 5.0),
+            },
+        )
+    """
+
+    def __init__(
+        self,
+        metrics: Any,
+        *,
+        per_method_buckets: dict[str, tuple[float, ...]] | None = None,
+    ) -> None:
         self._m = metrics
+        self._per_method_buckets = per_method_buckets or {}
+        self._method_histograms: dict[str, Any] = {}
+
+    def _latency_histogram(self, method: str) -> Any:
+        """Return (or lazily create) the latency histogram for a method."""
+        if method in self._method_histograms:
+            return self._method_histograms[method]
+
+        if method in self._per_method_buckets:
+            try:
+                from prometheus_client import Histogram  # noqa: PLC0415
+
+                hist = Histogram(
+                    "qx_grpc_method_duration_seconds",
+                    "gRPC method latency with per-method buckets.",
+                    labelnames=("method",),
+                    buckets=self._per_method_buckets[method],
+                    registry=self._m.registry,
+                )
+            except Exception:
+                hist = None
+            self._method_histograms[method] = hist
+            return hist
+
+        return None
 
     async def intercept_service(
         self,
@@ -261,6 +309,7 @@ class MetricsInterceptor(ServerInterceptor):  # type: ignore[misc]
 
         method = handler_call_details.method
         m = self._m
+        interceptor = self
 
         if not resp_stream:
 
@@ -273,7 +322,7 @@ class MetricsInterceptor(ServerInterceptor):  # type: ignore[misc]
                     outcome = "failure"
                     raise
                 finally:
-                    _record_metrics(m, method, outcome, time.perf_counter() - start)
+                    _record_metrics(m, method, outcome, time.perf_counter() - start, interceptor)
 
             return _rebuild(handler, _unary, req_stream, resp_stream)
 
@@ -287,15 +336,26 @@ class MetricsInterceptor(ServerInterceptor):  # type: ignore[misc]
                 outcome = "failure"
                 raise
             finally:
-                _record_metrics(m, method, outcome, time.perf_counter() - start)
+                _record_metrics(m, method, outcome, time.perf_counter() - start, interceptor)
 
         return _rebuild(handler, _streaming, req_stream, resp_stream)
 
 
-def _record_metrics(m: Any, method: str, outcome: str, duration: float) -> None:
+def _record_metrics(
+    m: Any,
+    method: str,
+    outcome: str,
+    duration: float,
+    interceptor: MetricsInterceptor | None = None,
+) -> None:
     try:
         m.http_request_total.labels(method="GRPC", route=method, status=outcome).inc()
-        m.http_request_duration.labels(method="GRPC", route=method).observe(duration)
+        # Use per-method histogram when configured; fall back to shared histogram.
+        hist = interceptor._latency_histogram(method) if interceptor else None
+        if hist is not None:
+            hist.labels(method=method).observe(duration)
+        else:
+            m.http_request_duration.labels(method="GRPC", route=method).observe(duration)
     except Exception:
         pass
 

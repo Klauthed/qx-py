@@ -12,6 +12,19 @@ from qx.core import ConflictError, Result
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+# Optional Prometheus metrics — no hard dep on prometheus_client.
+try:
+    from prometheus_client import Counter
+
+    _version_conflicts_total = Counter(
+        "qx_eventstore_version_conflicts_total",
+        "Optimistic concurrency conflicts detected during event append.",
+        ["aggregate_type"],
+    )
+    _HAS_PROMETHEUS = True
+except Exception:  # pragma: no cover
+    _HAS_PROMETHEUS = False
+
 if TYPE_CHECKING:
     from qx.core.domain.events import DomainEvent
     from qx.eventstore.aggregate import EventSourcedAggregate
@@ -93,6 +106,8 @@ class EventStore:
             await self._session.execute(self._events.insert(), rows)
         except Exception as exc:
             if "unique" in str(exc).lower():
+                if _HAS_PROMETHEUS:
+                    _version_conflicts_total.labels(aggregate_type=aggregate_type).inc()
                 return Result.failure(
                     ConflictError(
                         code="eventstore.version_conflict",

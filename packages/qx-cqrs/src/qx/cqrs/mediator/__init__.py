@@ -82,10 +82,12 @@ class Mediator:
         *,
         command_behaviors: tuple[Behavior, ...] = (),
         query_behaviors: tuple[Behavior, ...] = (),
+        trace_behaviors: bool = False,
     ) -> None:
         self._container = container
         self._command_behaviors = command_behaviors
         self._query_behaviors = query_behaviors
+        self._trace_behaviors = trace_behaviors
 
         # message_type → handler_type
         self._command_handlers: dict[type[Command[Any]], type[Any]] = {}
@@ -314,7 +316,7 @@ class Mediator:
             handler = await self._container.resolve(handler_type, scope=scope)
             return await handler.handle(m)  # type: ignore[no-any-return]
 
-        execute = compose(behaviors, terminal)
+        execute = compose(behaviors, terminal, trace_behaviors=self._trace_behaviors)
         return await execute(message)
 
     async def publish(

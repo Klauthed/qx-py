@@ -12,6 +12,7 @@ from qx.db.engine import (
     make_session_factory,
     open_session,
 )
+from qx.db.locking import advisory_key, advisory_lock, advisory_xact_lock
 from qx.db.mapping import (
     jsonb_column,
     make_metadata,
@@ -59,6 +60,9 @@ __all__ = [
     "TenantSchemaManager",
     "UnitOfWork",
     "__version__",
+    "advisory_key",
+    "advisory_lock",
+    "advisory_xact_lock",
     "build_cursor_page",
     "create_engine",
     "decode_cursor",

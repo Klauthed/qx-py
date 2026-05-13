@@ -10,6 +10,7 @@ dependencies = [
     "qx-core",
     "qx-di",
     "qx-cqrs",
+    "qx-db",
     "qx-events",
     "qx-observability",
     "nats-py>=2.9.0",

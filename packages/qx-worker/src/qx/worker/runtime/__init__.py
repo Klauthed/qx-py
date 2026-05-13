@@ -25,6 +25,7 @@ messages from the same durable consumer (NATS load-balances).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -37,6 +38,7 @@ from qx.worker.health import WorkerHealth
 if TYPE_CHECKING:
     from qx.cqrs import Mediator
     from qx.di import Container
+    from qx.worker.dlq import DeadLetterStore
 
 # ---------------------------------------------------------------------------
 # Optional Prometheus metrics
@@ -47,7 +49,12 @@ try:
     _messages_total = Counter(
         "qx_worker_messages_total",
         "Total messages processed by the worker",
-        ["event_name", "result"],
+        ["event_name", "result"],  # result: ack | nak | drop | dlq
+    )
+    _dlq_total = Counter(
+        "qx_worker_dlq_total",
+        "Messages moved to the dead letter queue",
+        ["event_name"],
     )
     _message_duration = Histogram(
         "qx_worker_message_duration_seconds",
@@ -59,13 +66,27 @@ try:
         "qx_worker_messages_inflight",
         "Number of messages currently being processed",
     )
+    _consumer_lag = Gauge(
+        "qx_worker_consumer_lag",
+        "JetStream num_pending — messages in the stream not yet delivered to this consumer.",
+        ["consumer"],
+    )
     _HAS_PROMETHEUS = True
 except Exception:  # pragma: no cover
     _HAS_PROMETHEUS = False
+    _dlq_total = None  # type: ignore[assignment]
 
 __all__ = ["WorkerRuntime"]
 
-_Result = str  # "ack" | "nak" | "drop"
+_Result = str  # "ack" | "nak" | "drop" | "dlq"
+
+
+def _is_last_attempt(msg: Any, consumer: Any) -> bool:
+    """Return True when the message has exhausted all redelivery attempts."""
+    meta = getattr(msg, "metadata", None)
+    num_delivered = int(getattr(meta, "num_delivered", 0) or 0)
+    max_deliver = int(getattr(consumer, "_max_deliver", 0) or 0)
+    return max_deliver > 0 and num_delivered >= max_deliver
 
 
 class WorkerRuntime:
@@ -90,6 +111,8 @@ class WorkerRuntime:
         *,
         concurrency: int = 4,
         health: WorkerHealth | None = None,
+        lag_poll_interval: float = 15.0,
+        dlq: DeadLetterStore | None = None,
     ) -> None:
         self._container = container
         self._consumer = consumer
@@ -99,6 +122,8 @@ class WorkerRuntime:
         self._health = health or WorkerHealth()
         self._stop = asyncio.Event()
         self._log = get_logger("qx.worker")
+        self._lag_poll_interval = lag_poll_interval
+        self._dlq = dlq
 
     @property
     def health(self) -> WorkerHealth:
@@ -108,11 +133,25 @@ class WorkerRuntime:
         """Signal the run loop to stop accepting new batches."""
         self._stop.set()
 
+    async def _poll_consumer_lag(self) -> None:
+        """Periodically update the consumer lag gauge from JetStream num_pending."""
+        consumer_label = getattr(self._consumer, "_durable", "unknown")
+        while True:
+            try:
+                await asyncio.sleep(self._lag_poll_interval)
+            except asyncio.CancelledError:
+                break
+            if _HAS_PROMETHEUS:
+                pending = await self._consumer.num_pending()
+                if pending is not None:
+                    _consumer_lag.labels(consumer=consumer_label).set(pending)
+
     async def run(self) -> None:
         self._health.mark_started()
         self._log.info("worker starting", concurrency=self._concurrency)
 
         inflight: set[asyncio.Task[None]] = set()
+        lag_task = asyncio.create_task(self._poll_consumer_lag())
 
         try:
             async with self._consumer.messages() as sub:
@@ -148,6 +187,9 @@ class WorkerRuntime:
                 await asyncio.gather(*inflight, return_exceptions=True)
 
         finally:
+            lag_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await lag_task
             self._health.mark_stopped()
             self._log.info("worker stopped")
 
@@ -234,6 +276,27 @@ class WorkerRuntime:
                 return "drop"
 
             except Exception as exc:
+                if _HAS_PROMETHEUS:
+                    timer.__exit__(type(exc), exc, exc.__traceback__)  # type: ignore[no-untyped-call]
+                if self._dlq is not None and _is_last_attempt(msg, self._consumer):
+                    self._log.error(
+                        "handler failed on last attempt; routing to DLQ",
+                        event_name=event_name,
+                        error=str(exc),
+                        exc_info=True,
+                    )
+                    try:
+                        await self._dlq.persist(msg, error=str(exc))
+                    except Exception:
+                        self._log.error(
+                            "DLQ persist failed; message will be lost",
+                            event_name=event_name,
+                            exc_info=True,
+                        )
+                    await msg.ack()
+                    if _HAS_PROMETHEUS:
+                        _dlq_total.labels(event_name=event_name).inc()
+                    return "dlq"
                 self._log.error(
                     "handler failed; naking for retry",
                     event_name=event_name,
@@ -241,6 +304,4 @@ class WorkerRuntime:
                     exc_info=True,
                 )
                 await msg.nak()
-                if _HAS_PROMETHEUS:
-                    timer.__exit__(type(exc), exc, exc.__traceback__)  # type: ignore[no-untyped-call]
                 return "nak"

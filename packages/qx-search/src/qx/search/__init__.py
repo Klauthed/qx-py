@@ -9,11 +9,20 @@ from __future__ import annotations
 
 from qx.search.client import SearchSettings, create_search_client
 from qx.search.indexing import drop_index, ensure_index
-from qx.search.repository import OpenSearchRepository, SearchHit, SearchQuery, SearchRepository
+from qx.search.repository import (
+    BulkIndexError,
+    BulkIndexResult,
+    OpenSearchRepository,
+    SearchHit,
+    SearchQuery,
+    SearchRepository,
+)
 
 __version__ = "0.2.0"
 
 __all__ = [
+    "BulkIndexError",
+    "BulkIndexResult",
     "OpenSearchRepository",
     "SearchHit",
     "SearchQuery",

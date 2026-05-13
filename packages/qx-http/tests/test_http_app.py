@@ -138,6 +138,48 @@ def test_correlation_id_synthesized_when_missing(client: TestClient) -> None:
     assert r.json()["metadata"]["correlation_id"]
 
 
+# ---- W3C traceparent propagation ----
+
+
+def test_traceparent_sets_trace_id_on_request_context(app: FastAPI) -> None:
+    """Incoming W3C traceparent causes trace_id to appear in the response envelope."""
+    # A valid W3C traceparent: version-traceid-parentid-flags
+    traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+
+    @app.post("/trace_check")
+    async def _check() -> dict:
+        from qx.core import current_context  # noqa: PLC0415
+
+        ctx = current_context()
+        return {"trace_id": ctx.trace_id}
+
+    with TestClient(app) as c:
+        r = c.post("/trace_check", headers={"traceparent": traceparent})
+
+    assert r.status_code == 200
+    # The trace_id in RequestContext should match the trace_id from traceparent.
+    assert r.json()["trace_id"] == "4bf92f3577b34da6a3ce929d0e0e4736"
+
+
+def test_trace_id_synthesized_when_no_traceparent(app: FastAPI) -> None:
+    """Without traceparent a new trace_id is minted by the OTel span."""
+
+    @app.post("/trace_check2")
+    async def _check2() -> dict:
+        from qx.core import current_context  # noqa: PLC0415
+
+        ctx = current_context()
+        return {"trace_id": ctx.trace_id}
+
+    with TestClient(app) as c:
+        r = c.post("/trace_check2")
+
+    assert r.status_code == 200
+    # A fresh trace_id is a 32-char hex string or None if no tracer is configured.
+    trace_id = r.json()["trace_id"]
+    assert trace_id is None or (isinstance(trace_id, str) and len(trace_id) == 32)
+
+
 # ---- Probes ----
 
 

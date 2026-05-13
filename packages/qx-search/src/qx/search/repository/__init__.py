@@ -13,6 +13,7 @@ Implementations:
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar, cast
@@ -22,16 +23,40 @@ from opensearchpy.exceptions import TransportError as _OSTransportError
 from qx.core import InfrastructureError, Result
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import AsyncGenerator, Sequence
 
     from opensearchpy import AsyncOpenSearch
 
 _AnyDoc = Any  # alias used in cast() calls below to keep lines short
 
-__all__ = ["OpenSearchRepository", "SearchHit", "SearchQuery", "SearchRepository"]
+__all__ = [
+    "BulkIndexError",
+    "BulkIndexResult",
+    "OpenSearchRepository",
+    "SearchHit",
+    "SearchQuery",
+    "SearchRepository",
+]
 
 
 TDoc = TypeVar("TDoc")
+
+
+@dataclasses.dataclass(frozen=True)
+class BulkIndexError:
+    doc_id: str
+    error: str
+
+
+@dataclasses.dataclass(frozen=True)
+class BulkIndexResult:
+    indexed: int
+    failed: int
+    errors: list[BulkIndexError]
+
+    @property
+    def is_partial_failure(self) -> bool:
+        return self.failed > 0
 
 
 class SearchQuery:
@@ -76,6 +101,66 @@ class SearchRepository[TDoc](ABC):
     @abstractmethod
     async def search(self, query: SearchQuery) -> Result[tuple[list[SearchHit[TDoc]], int]]:
         """Search → ``(hits, total)`` (total is approximate for large result sets)."""
+
+    async def bulk_index(
+        self,
+        documents: Sequence[tuple[str, TDoc]],
+        *,
+        batch_size: int = 500,
+    ) -> Result[BulkIndexResult]:
+        """Index multiple documents.
+
+        Default: sequential ``index()`` calls — correct for all backends.
+        ``OpenSearchRepository`` overrides this with the bulk API for efficiency.
+        ``batch_size`` is honoured by the OpenSearch override; ignored here.
+        """
+        errors: list[BulkIndexError] = []
+        indexed = 0
+        for doc_id, document in documents:
+            result = await self.index(doc_id, document)
+            if result.is_failure:
+                errors.append(BulkIndexError(doc_id=doc_id, error=result.error.message))
+            else:
+                indexed += 1
+        return Result.success(BulkIndexResult(indexed=indexed, failed=len(errors), errors=errors))
+
+    async def scroll(
+        self,
+        query: SearchQuery,
+        *,
+        batch_size: int = 100,
+    ) -> AsyncGenerator[list[SearchHit[TDoc]]]:
+        """Iterate over all matching documents in batches.
+
+        Default: sequential ``search()`` pages — works for any backend.
+        ``OpenSearchRepository`` overrides with the OpenSearch scroll API to
+        bypass the 10 000-document ``from + size`` limit.
+
+        Usage::
+
+            async for batch in repo.scroll(SearchQuery(filters={"status": "active"})):
+                for hit in batch:
+                    process(hit.doc)
+        """
+        page = 1
+        while True:
+            paged = SearchQuery(
+                text=query.text,
+                filters=query.filters,
+                sort=query.sort,
+                page=page,
+                page_size=batch_size,
+            )
+            result = await self.search(paged)
+            if result.is_failure:
+                raise result.error.as_exception()
+            hits, _total = result.value
+            if not hits:
+                break
+            yield hits
+            if len(hits) < batch_size:
+                break
+            page += 1
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +260,111 @@ class OpenSearchRepository[TDoc](SearchRepository[TDoc]):
         ]
         total: int = response["hits"]["total"]["value"]
         return Result.success((hits, total))
+
+    async def bulk_index(
+        self,
+        documents: Sequence[tuple[str, TDoc]],
+        *,
+        batch_size: int = 500,
+    ) -> Result[BulkIndexResult]:
+        """Bulk index using the OpenSearch bulk API.
+
+        Processes ``documents`` in batches of ``batch_size``. Partial failures
+        (individual document errors) are collected in ``BulkIndexResult.errors``
+        rather than raising — the caller decides whether a partial failure is
+        acceptable.
+        """
+        errors: list[BulkIndexError] = []
+        indexed = 0
+        docs_list = list(documents)
+
+        for i in range(0, len(docs_list), batch_size):
+            batch = docs_list[i : i + batch_size]
+            actions: list[dict[str, Any]] = []
+            for doc_id, document in batch:
+                actions.append({"index": {"_index": self._index, "_id": doc_id}})
+                actions.append(self._serialize(document))
+
+            try:
+                response = await self._client.bulk(body=actions)
+            except _OSTransportError as exc:
+                return Result.failure(
+                    InfrastructureError(
+                        code="search.bulk_failed",
+                        message=f"bulk index failed: {exc}",
+                        cause=exc,
+                    )
+                )
+
+            if response.get("errors"):
+                for item in response.get("items", []):
+                    op = item.get("index", {})
+                    if op.get("status", 200) >= 400:
+                        errors.append(
+                            BulkIndexError(
+                                doc_id=str(op.get("_id", "unknown")),
+                                error=str(op.get("error", {}).get("reason", "unknown error")),
+                            )
+                        )
+                    else:
+                        indexed += 1
+            else:
+                indexed += len(batch)
+
+        return Result.success(BulkIndexResult(indexed=indexed, failed=len(errors), errors=errors))
+
+    async def scroll(
+        self,
+        query: SearchQuery,
+        *,
+        batch_size: int = 100,
+    ) -> AsyncGenerator[list[SearchHit[TDoc]]]:
+        """Iterate all matching documents via the OpenSearch scroll API.
+
+        Uses a 2-minute scroll TTL per batch. The scroll context is always
+        cleared in a ``finally`` block, even if the caller breaks early.
+        Bypasses the 10 000-document ``from + size`` limit.
+        """
+        try:
+            response = await self._client.search(
+                index=self._index,
+                body=self._build_dsl(query),
+                scroll="2m",
+                size=batch_size,
+            )
+        except _OSTransportError as exc:
+            raise InfrastructureError(
+                code="search.scroll_failed",
+                message=f"scroll initialisation failed: {exc}",
+                cause=exc,
+            ).as_exception() from exc
+
+        scroll_id: str = response["_scroll_id"]
+        try:
+            while True:
+                raw_hits = response["hits"]["hits"]
+                if not raw_hits:
+                    break
+                yield [
+                    SearchHit(
+                        doc=self._deserialize(h["_source"]),
+                        score=h.get("_score") or 0.0,
+                        source=h["_source"],
+                    )
+                    for h in raw_hits
+                ]
+                try:
+                    response = await self._client.scroll(scroll_id=scroll_id, scroll="2m")
+                except _OSTransportError as exc:
+                    raise InfrastructureError(
+                        code="search.scroll_failed",
+                        message=f"scroll continuation failed: {exc}",
+                        cause=exc,
+                    ).as_exception() from exc
+                scroll_id = response["_scroll_id"]
+        finally:
+            with contextlib.suppress(Exception):
+                await self._client.clear_scroll(scroll_id=scroll_id)
 
     # ------------------------------------------------------------------
     # Overridable serialization hooks

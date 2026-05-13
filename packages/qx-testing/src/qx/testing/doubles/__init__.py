@@ -29,9 +29,15 @@ from qx.core import (
 )
 from qx.cqrs import MediatorError
 from qx.cqrs.messages import Command, Query
-from qx.search.repository import SearchHit, SearchQuery, SearchRepository
+from qx.search.repository import (
+    BulkIndexResult,
+    SearchHit,
+    SearchQuery,
+    SearchRepository,
+)
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Sequence
     from uuid import UUID
 
 __all__ = ["FlagClientStub", "InMemorySearchRepository", "MediatorStub", "RepositoryStub"]
@@ -221,6 +227,45 @@ class InMemorySearchRepository[TDoc](SearchRepository[TDoc]):
     async def delete(self, doc_id: str) -> Result[None]:
         self._store.pop(doc_id, None)
         return Result.success(None)
+
+    async def bulk_index(
+        self,
+        documents: Sequence[tuple[str, TDoc]],
+        *,
+        batch_size: int = 500,
+    ) -> Result[BulkIndexResult]:
+        docs = list(documents)
+        for doc_id, document in docs:
+            self._store[doc_id] = (document, self._to_dict(document))
+        return Result.success(BulkIndexResult(indexed=len(docs), failed=0, errors=[]))
+
+    async def scroll(
+        self,
+        query: SearchQuery,
+        *,
+        batch_size: int = 100,
+    ) -> AsyncGenerator[list[SearchHit[TDoc]]]:
+        all_hits: list[SearchHit[TDoc]] = []
+        for doc, source in self._store.values():
+            if not self._matches_filters(source, query):
+                continue
+            score = self._text_score(source, query)
+            if query.text and score == 0.0:
+                continue
+            all_hits.append(SearchHit(doc=doc, score=score, source=source))
+
+        if query.sort:
+            for field, order in reversed(query.sort):
+
+                def _key(h: SearchHit[TDoc], f: str = field) -> Any:
+                    return h.source.get(f, "")
+
+                all_hits.sort(key=_key, reverse=(order.lower() == "desc"))
+        else:
+            all_hits.sort(key=lambda h: h.score, reverse=True)
+
+        for i in range(0, len(all_hits), batch_size):
+            yield all_hits[i : i + batch_size]
 
     async def search(self, query: SearchQuery) -> Result[tuple[list[SearchHit[TDoc]], int]]:
         hits: list[SearchHit[TDoc]] = []

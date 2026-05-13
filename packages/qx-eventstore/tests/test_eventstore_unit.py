@@ -167,6 +167,56 @@ async def test_append_no_snapshot_below_threshold() -> None:
     mock_snap.assert_not_awaited()
 
 
+async def test_append_increments_conflict_counter_on_unique_violation() -> None:
+    """A unique-constraint exception increments the Prometheus conflict counter."""
+    from prometheus_client import CollectorRegistry  # noqa: PLC0415
+    from qx.eventstore import store as _store_module  # noqa: PLC0415
+
+    registry = CollectorRegistry()
+
+    from prometheus_client import Counter  # noqa: PLC0415
+
+    counter = Counter(
+        "qx_es_conflict_test",
+        "test counter",
+        ["aggregate_type"],
+        registry=registry,
+    )
+
+    session = AsyncMock()
+    session.execute.side_effect = Exception("unique constraint violated")
+    store = _make_store(session)
+    account = BankAccount(id="acc-1")
+    account.deposit(100)
+
+    with (
+        patch.object(_store_module, "_version_conflicts_total", counter),
+        patch.object(_store_module, "_HAS_PROMETHEUS", True),
+    ):
+        result = await store.append(account, aggregate_type="test.BankAccount")
+
+    assert result.is_failure
+    assert result.error.code == "eventstore.version_conflict"
+    assert counter.labels(aggregate_type="test.BankAccount")._value.get() == 1.0
+
+
+async def test_append_returns_conflict_without_prometheus() -> None:
+    """Conflict detection works even when prometheus_client is not installed."""
+    from qx.eventstore import store as _store_module  # noqa: PLC0415
+
+    session = AsyncMock()
+    session.execute.side_effect = Exception("unique constraint violated")
+    store = _make_store(session)
+    account = BankAccount(id="acc-1")
+    account.deposit(100)
+
+    with patch.object(_store_module, "_HAS_PROMETHEUS", False):
+        result = await store.append(account, aggregate_type="test.BankAccount")
+
+    assert result.is_failure
+    assert result.error.code == "eventstore.version_conflict"
+
+
 # ---- EventStore.load ----
 
 

@@ -2,18 +2,25 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import random
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from qx.saga.store import _COMPENSATED, _COMPLETED, _RUNNING, SagaStore
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from qx.core import IntegrationEvent
     from qx.cqrs import Mediator
     from qx.saga.saga import Saga
     from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = ["SagaManager"]
+
+_log = logging.getLogger("qx.saga")
 
 
 class SagaManager:
@@ -44,10 +51,21 @@ class SagaManager:
     7. Otherwise persist updated state and keep status as running.
     """
 
-    def __init__(self, mediator: Mediator, table: Any) -> None:
+    def __init__(
+        self,
+        mediator: Mediator,
+        table: Any,
+        *,
+        lock_factory: Callable[[str], Any] | None = None,
+        compensate_max_attempts: int = 3,
+        compensate_base_delay_seconds: float = 0.1,
+    ) -> None:
         self._mediator = mediator
         self._table = table
         self._registrations: list[tuple[type[Saga[Any]], Any]] = []
+        self._lock_factory = lock_factory
+        self._compensate_max_attempts = compensate_max_attempts
+        self._compensate_base_delay = compensate_base_delay_seconds
 
     def register(
         self,
@@ -102,22 +120,7 @@ class SagaManager:
             saga_type = _saga_type_key(saga_class)
             instances = await store.load_timed_out(saga_type, threshold)
             for instance in instances:
-                saga = self._hydrate(saga_class, instance.state_data)
-                try:
-                    await saga_class._timeout_handler(saga)
-                    new_status = (
-                        _COMPLETED
-                        if saga._completed
-                        else (_COMPENSATED if saga._failed else _RUNNING)
-                    )
-                except Exception:
-                    await saga.compensate()
-                    new_status = _COMPENSATED
-                await store.save(
-                    instance,
-                    new_state=saga.state.model_dump(mode="json"),
-                    new_status=new_status,
-                )
+                await self._fire_timeout(store, saga_class, instance)
 
     async def _dispatch_to(
         self,
@@ -150,20 +153,67 @@ class SagaManager:
         try:
             await saga.handle(event)
             if saga._failed:
-                await saga.compensate()
+                await self._compensate(saga)
                 new_status = _COMPENSATED
             elif saga._completed:
                 new_status = _COMPLETED
             else:
                 new_status = _RUNNING
         except Exception:
-            await saga.compensate()
+            await self._compensate(saga)
             new_status = _COMPENSATED
 
         await store.save(
             instance,
             new_state=saga.state.model_dump(mode="json"),
             new_status=new_status,
+        )
+
+    async def _fire_timeout(
+        self,
+        store: SagaStore,
+        saga_class: type[Saga[Any]],
+        instance: Any,
+    ) -> None:
+        """Fire the timeout handler for one instance, guarded by a distributed lock."""
+        if self._lock_factory is not None:
+            lock = self._lock_factory(f"qx:saga:timeout:{instance.id}")
+            async with lock.acquired(ttl_seconds=30) as held:
+                if not held:
+                    return
+                await self._run_timeout(store, saga_class, instance)
+        else:
+            await self._run_timeout(store, saga_class, instance)
+
+    async def _run_timeout(
+        self,
+        store: SagaStore,
+        saga_class: type[Saga[Any]],
+        instance: Any,
+    ) -> None:
+        saga = self._hydrate(saga_class, instance.state_data)
+        handler = saga_class._timeout_handler
+        assert handler is not None, "_run_timeout called without a registered timeout handler"
+        try:
+            await handler(saga)
+            new_status = (
+                _COMPLETED if saga._completed else (_COMPENSATED if saga._failed else _RUNNING)
+            )
+        except Exception:
+            await self._compensate(saga)
+            new_status = _COMPENSATED
+        await store.save(
+            instance,
+            new_state=saga.state.model_dump(mode="json"),
+            new_status=new_status,
+        )
+
+    async def _compensate(self, saga: Saga[Any]) -> None:
+        """Call saga.compensate() with exponential backoff on transient failures."""
+        await _compensate_with_retry(
+            saga,
+            max_attempts=self._compensate_max_attempts,
+            base_delay=self._compensate_base_delay,
         )
 
     def _hydrate(self, saga_class: type[Saga[Any]], state_data: dict[str, Any]) -> Saga[Any]:
@@ -177,3 +227,32 @@ class SagaManager:
 
 def _saga_type_key(saga_class: type[Any]) -> str:
     return f"{saga_class.__module__}.{saga_class.__qualname__}"
+
+
+async def _compensate_with_retry(
+    saga: Any,
+    *,
+    max_attempts: int,
+    base_delay: float,
+) -> None:
+    """Call saga.compensate() retrying transient failures with exponential backoff.
+
+    If all attempts fail the last exception is swallowed and an error is logged —
+    the saga is marked compensated regardless so the row is not left in limbo.
+    """
+    last_exc: BaseException | None = None
+    for attempt in range(max_attempts):
+        try:
+            await saga.compensate()
+            return
+        except Exception as exc:
+            last_exc = exc
+            if attempt < max_attempts - 1:
+                delay = base_delay * (2**attempt) + random.uniform(0, base_delay * 0.1)
+                await asyncio.sleep(delay)
+    _log.error(
+        "saga.compensate() failed after %d attempt(s): %s",
+        max_attempts,
+        last_exc,
+        exc_info=last_exc,
+    )

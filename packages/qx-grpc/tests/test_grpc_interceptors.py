@@ -164,7 +164,8 @@ async def test_rc_interceptor_unary_opens_context() -> None:
 
     handler.unary_unary = _spying_unary
     wrapped2 = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     await wrapped2.unary_unary("req", context)
 
@@ -179,7 +180,8 @@ async def test_rc_interceptor_sets_trailing_metadata() -> None:
 
     interceptor = RequestContextInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     await wrapped.unary_unary("req", context)
 
@@ -210,7 +212,8 @@ async def test_rc_interceptor_propagates_metadata_ids() -> None:
     handler.unary_unary = _capture
     interceptor = RequestContextInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     await wrapped.unary_unary("req", context)
 
@@ -232,7 +235,8 @@ async def test_rc_interceptor_stores_deadline_when_finite() -> None:
     handler.unary_unary = _capture
     interceptor = RequestContextInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     await wrapped.unary_unary("req", context)
 
@@ -253,7 +257,8 @@ async def test_rc_interceptor_no_deadline_when_infinite() -> None:
     handler.unary_unary = _capture
     interceptor = RequestContextInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     await wrapped.unary_unary("req", context)
 
@@ -282,7 +287,8 @@ async def test_rc_interceptor_server_streaming_opens_context() -> None:
 
     interceptor = RequestContextInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
 
     results = [item async for item in wrapped.unary_stream("req", context)]
@@ -313,7 +319,8 @@ async def test_rc_interceptor_bidi_streaming() -> None:
     context = _FakeContext()
     interceptor = RequestContextInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
 
     results = [item async for item in wrapped.stream_stream(_request_iter(), context)]
@@ -332,7 +339,8 @@ async def test_exc_interceptor_passes_through_on_success() -> None:
 
     interceptor = ExceptionInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     result = await wrapped.unary_unary("req", context)
 
@@ -353,7 +361,8 @@ async def test_exc_interceptor_converts_error_exception() -> None:
 
     interceptor = ExceptionInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     await wrapped.unary_unary("req", context)
 
@@ -371,7 +380,8 @@ async def test_exc_interceptor_unknown_for_bare_exception() -> None:
 
     interceptor = ExceptionInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     await wrapped.unary_unary("req", context)
 
@@ -389,7 +399,8 @@ async def test_exc_interceptor_reraises_cancelled_error() -> None:
 
     interceptor = ExceptionInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     with pytest.raises(asyncio.CancelledError):
         await wrapped.unary_unary("req", context)
@@ -413,7 +424,8 @@ async def test_exc_interceptor_streaming_error_in_generator() -> None:
 
     interceptor = ExceptionInterceptor()
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
 
     results = [item async for item in wrapped.unary_stream("req", context)]
@@ -451,7 +463,8 @@ async def test_metrics_interceptor_records_on_success() -> None:
 
     interceptor = MetricsInterceptor(m)
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     await wrapped.unary_unary("req", context)
 
@@ -481,12 +494,82 @@ async def test_metrics_interceptor_records_failure() -> None:
 
     interceptor = MetricsInterceptor(m)
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     with pytest.raises(RuntimeError):
         await wrapped.unary_unary("req", context)
 
     assert recorded == ["failure"]
+
+
+async def test_metrics_interceptor_per_method_buckets_uses_custom_histogram() -> None:
+    """When per_method_buckets is configured for a method, a dedicated histogram
+    is lazily created and used instead of the shared http_request_duration."""
+    from prometheus_client import CollectorRegistry  # noqa: PLC0415
+    from qx.observability import Metrics  # noqa: PLC0415
+
+    registry = CollectorRegistry()
+    metrics = Metrics(registry=registry)
+    method = "/order.OrderService/PlaceOrder"
+    buckets = (0.01, 0.05, 0.1, 0.5, 1.0, 5.0)
+
+    interceptor = MetricsInterceptor(metrics, per_method_buckets={method: buckets})
+
+    handler = _unary_handler_for("ok")
+    details = _FakeCallDetails(method=method)
+    context = _FakeContext()
+
+    wrapped = await interceptor.intercept_service(
+        lambda d: _continuation(handler),
+        details,
+    )
+    await wrapped.unary_unary("req", context)
+
+    # The per-method histogram should now be cached on the interceptor.
+    hist = interceptor._latency_histogram(method)
+    assert hist is not None
+
+
+async def test_metrics_interceptor_per_method_buckets_falls_back_for_other_methods() -> None:
+    """Methods not listed in per_method_buckets use the shared histogram."""
+    from prometheus_client import CollectorRegistry  # noqa: PLC0415
+    from qx.observability import Metrics  # noqa: PLC0415
+
+    registry = CollectorRegistry()
+    metrics = Metrics(registry=registry)
+    special_method = "/order.OrderService/PlaceOrder"
+
+    interceptor = MetricsInterceptor(metrics, per_method_buckets={special_method: (0.1, 1.0)})
+
+    # For a different method, no per-method histogram should be created.
+    assert interceptor._latency_histogram("/other.Service/OtherMethod") is None
+
+
+async def test_metrics_interceptor_per_method_histogram_cached() -> None:
+    """_latency_histogram returns the same object on repeated calls."""
+    from prometheus_client import CollectorRegistry  # noqa: PLC0415
+    from qx.observability import Metrics  # noqa: PLC0415
+
+    registry = CollectorRegistry()
+    metrics = Metrics(registry=registry)
+    method = "/svc.Svc/Method"
+
+    interceptor = MetricsInterceptor(metrics, per_method_buckets={method: (0.1,)})
+
+    handler = _unary_handler_for("ok")
+    details = _FakeCallDetails(method=method)
+    context = _FakeContext()
+
+    wrapped = await interceptor.intercept_service(
+        lambda d: _continuation(handler),
+        details,
+    )
+    await wrapped.unary_unary("req", context)
+
+    h1 = interceptor._latency_histogram(method)
+    h2 = interceptor._latency_histogram(method)
+    assert h1 is h2
 
 
 async def test_metrics_interceptor_streaming_records_success() -> None:
@@ -507,7 +590,8 @@ async def test_metrics_interceptor_streaming_records_success() -> None:
 
     interceptor = MetricsInterceptor(m)
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     results = [item async for item in wrapped.unary_stream("req", context)]
 
@@ -557,7 +641,8 @@ async def test_jwt_interceptor_stores_principal_on_valid_token() -> None:
     ctx = RequestContext(attributes={})
     interceptor = JwtAuthInterceptor(validator)
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     with request_scope(ctx):
         await wrapped.unary_unary("req", context)
@@ -583,7 +668,8 @@ async def test_jwt_interceptor_no_principal_on_missing_token() -> None:
     ctx = RequestContext(attributes={})
     interceptor = JwtAuthInterceptor(validator)
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     with request_scope(ctx):
         await wrapped.unary_unary("req", context)
@@ -609,7 +695,8 @@ async def test_jwt_interceptor_no_principal_on_invalid_token() -> None:
     ctx = RequestContext(attributes={})
     interceptor = JwtAuthInterceptor(validator)
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     with request_scope(ctx):
         await wrapped.unary_unary("req", context)
@@ -641,7 +728,8 @@ async def test_jwt_interceptor_streaming_stores_principal() -> None:
     ctx = RequestContext(attributes={})
     interceptor = JwtAuthInterceptor(validator)
     wrapped = await interceptor.intercept_service(
-        lambda d: _continuation(handler), details,
+        lambda d: _continuation(handler),
+        details,
     )
     with request_scope(ctx):
         results = [item async for item in wrapped.unary_stream("req", context)]

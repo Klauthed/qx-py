@@ -1,0 +1,85 @@
+"""{{ name_pascal }} aggregate — event-sourced.
+
+Every state change is captured as a domain event persisted to the event log.
+State is always rebuilt by replaying the event stream; no ORM mapping needed.
+
+Add command methods that call ``record_event()``.
+Add ``apply_<EventClassName>`` methods as the *only* state mutators.
+"""
+
+from __future__ import annotations
+
+from dataclasses import field
+from typing import ClassVar
+from uuid import UUID, uuid4
+
+from qx.core import DomainError, DomainEvent, IntegrationEvent, Result
+from qx.eventstore import EventSourcedAggregate
+
+__all__ = [
+    "{{ name_pascal }}",
+    "{{ name_pascal }}Created",
+    "{{ name_pascal }}CreatedIntegration",
+]
+
+{{ name_upper }}_AGGREGATE_TYPE = "{{ service_pkg }}.{{ name_pascal }}"
+
+
+# ---------------------------------------------------------------------------
+# Domain events (persisted to the event log)
+# ---------------------------------------------------------------------------
+
+
+class {{ name_pascal }}Created(DomainEvent):
+    event_name: ClassVar[str] = "{{ service_pkg }}.{{ name_snake }}.created"
+
+    {{ name_snake }}_id: UUID
+
+
+# ---------------------------------------------------------------------------
+# Integration event (published via outbox to other services)
+# ---------------------------------------------------------------------------
+
+
+class {{ name_pascal }}CreatedIntegration(IntegrationEvent):
+    event_name: ClassVar[str] = "{{ service_pkg }}.{{ name_snake }}.created"
+    event_version: ClassVar[int] = 1
+
+    {{ name_snake }}_id: UUID
+
+
+# ---------------------------------------------------------------------------
+# Aggregate
+# ---------------------------------------------------------------------------
+
+
+class {{ name_pascal }}(EventSourcedAggregate[UUID]):
+    """Event-sourced {{ name_pascal }} aggregate.
+
+    Add your domain fields here. Use ``field(default=...)`` for each.
+    Example:
+        name: str = field(default="")
+        status: str = field(default="pending")
+    """
+
+    # ------------------------------------------------------------------
+    # Factory
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def create(cls) -> "Result[{{ name_pascal }}]":
+        """Create a new {{ name_pascal }} and emit creation events."""
+        {{ name_snake }}_id = uuid4()
+        instance = cls(id={{ name_snake }}_id)
+        instance.record_event({{ name_pascal }}Created({{ name_snake }}_id={{ name_snake }}_id))
+        instance.record_event(
+            {{ name_pascal }}CreatedIntegration({{ name_snake }}_id={{ name_snake }}_id)
+        )
+        return Result.success(instance)
+
+    # ------------------------------------------------------------------
+    # Apply methods — the ONLY state mutators
+    # ------------------------------------------------------------------
+
+    def apply_{{ name_snake }}created(self, ev: {{ name_pascal }}Created) -> None:
+        pass  # set initial state from ev fields here

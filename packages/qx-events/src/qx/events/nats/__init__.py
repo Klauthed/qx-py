@@ -210,6 +210,20 @@ class NatsConsumer:
         finally:
             await sub.unsubscribe()
 
+    async def num_pending(self) -> int | None:
+        """Return the JetStream ``num_pending`` count for this consumer.
+
+        Returns ``None`` if the JetStream context is not yet initialised or
+        the server call fails — callers should treat ``None`` as "unknown".
+        """
+        if self._js is None:
+            return None
+        try:
+            info = await self._js.consumer_info(self._stream, self._durable)
+            return int(info.num_pending)
+        except Exception:
+            return None
+
     def parse_message(self, msg: Msg) -> IntegrationEvent:
         """Deserialize a NATS message into a concrete IntegrationEvent."""
         envelope = json.loads(msg.data.decode())

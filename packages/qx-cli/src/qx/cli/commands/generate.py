@@ -112,6 +112,27 @@ def query(
 
 
 @app.command()
+def esaggregate(
+    name: str = typer.Argument(..., help="Aggregate name (PascalCase, e.g. 'Shipment')."),
+    force: bool = typer.Option(False, "--force", "-f"),
+) -> None:
+    """Generate an event-sourced aggregate (EventSourcedAggregate subclass, no ORM mapping)."""
+    root, pkg = _service_package()
+    context = _names(name, pkg)
+    files = render_tree(
+        "qx.cli.scaffolds",
+        "esaggregate",
+        root,
+        context,
+        overwrite=force,
+    )
+    console.rule(
+        f"[bold green]event-sourced aggregate {context['name_pascal']} generated[/bold green]"
+    )
+    preview_tree(files, root)
+
+
+@app.command()
 def event(
     name: str = typer.Argument(..., help="Event name (e.g. 'UserRegistered')."),
     force: bool = typer.Option(False, "--force", "-f"),
@@ -163,10 +184,12 @@ def endpoint(
 
 def _names(name: str, pkg: str) -> dict[str, Any]:
     """Build the standard naming variants for a generated artifact."""
+    snake = _snake(name)
     return {
         "name_pascal": _pascal(name),
-        "name_snake": _snake(name),
+        "name_snake": snake,
         "name_kebab": _kebab(name),
+        "name_upper": snake.upper(),
         "service_pkg": pkg,
     }
 
