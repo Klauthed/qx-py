@@ -67,6 +67,23 @@ jobs:
       - name: pytest (examples — unit/smoke)
         run: uv run pytest examples/ -q --tb=short --ignore=examples/identity-service/tests/integration
 
+  # ── VS Code extension ───────────────────────────────────────────────────────
+  vscode-ext:
+    name: VS Code extension (compile)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extensions/vscode
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: extensions/vscode/package-lock.json
+      - run: npm ci
+      - run: npm run compile
+
   # ── Integration tests ───────────────────────────────────────────────────────
   test-integration:
     name: Integration tests

@@ -49,3 +49,8 @@ Thumbs.db
 
 # Dist artifacts
 dist/
+
+# VS Code extension build artifacts
+extensions/vscode/node_modules/
+extensions/vscode/dist/
+extensions/vscode/*.vsix

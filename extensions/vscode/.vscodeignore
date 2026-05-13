@@ -1,6 +1,9 @@
 .vscode/**
 src/**
 node_modules/**
-*.map
+dist/**/*.map
 tsconfig.json
 .eslintrc.json
+npm-debug.log
+.npmrc
+!dist/extension.js
