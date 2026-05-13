@@ -31,38 +31,44 @@ from qx.db.pagination import (
     encode_cursor,
 )
 from qx.db.repository import Repository
-from qx.db.tenancy import TenantSchemaManager, open_schema_session
+from qx.db.tenancy import (
+    RlsPolicyManager,
+    TenantDatabaseManager,
+    TenantEngineRouter,
+    TenantSchemaManager,
+    open_db_session,
+    open_rls_session,
+    open_schema_session,
+)
 from qx.db.uow import EventDispatcher, UnitOfWork
 
 __version__ = "0.1.0"
 
 __all__ = [
     "OUTBOX_TABLE_NAME",
-    # Engine / sessions
     "DatabaseSettings",
     "DefaultOutboxRecorder",
     "EventDispatcher",
-    # Outbox
     "OutboxRecorder",
-    # Repository
     "Repository",
+    "RlsPolicyManager",
     "SessionFactory",
-    # Schema-per-tenant
+    "TenantDatabaseManager",
+    "TenantEngineRouter",
     "TenantSchemaManager",
-    # UoW
     "UnitOfWork",
     "__version__",
     "build_cursor_page",
     "create_engine",
     "decode_cursor",
-    # Pagination
     "encode_cursor",
     "include_outbox_table",
     "jsonb_column",
-    # Mapping
     "make_metadata",
     "make_registry",
     "make_session_factory",
+    "open_db_session",
+    "open_rls_session",
     "open_schema_session",
     "open_session",
     "standard_audit_columns",
