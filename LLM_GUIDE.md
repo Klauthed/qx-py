@@ -27,7 +27,12 @@ Individual packages: `pip install qx-core qx-cqrs qx-db qx-http qx-di qx-observa
 
 ## Project Structure
 
-Every Qx service follows this layout:
+Qx supports two layout strategies. Choose one per service; don't mix them.
+
+### Layered (default)
+
+Best for microservices focused on a single domain aggregate.
+Scaffold: `qx new service <name>`
 
 ```
 src/<service_name>/
@@ -49,6 +54,46 @@ src/<service_name>/
     __init__.py       # register_routes(app)
   main.py             # composition root — build_app()
 ```
+
+`main.py` calls `register_handlers(mediator, container)` which walks
+`application/` to discover all `@command_handler`/`@query_handler` classes.
+
+### Vertical Slice (--slices)
+
+Best for monolith-style services with multiple feature domains (user, house, rent…).
+Scaffold: `qx new service <name> --slices --domain <starter_slice>`
+
+```
+src/<service_name>/
+  shared/               # single MetaData instance + outbox table
+  application/
+    <slice_a>/          # e.g. user/
+      commands/         # one file per command + handler
+      queries/          # one file per query + handler
+    <slice_b>/          # e.g. house/
+      commands/
+      queries/
+  domain/               # all aggregates, value objects, domain events (flat)
+  infrastructure/       # all SQLAlchemy tables + repositories (flat)
+  presentation/         # one FastAPI APIRouter file per slice (flat)
+  main.py               # composition root
+```
+
+`main.py` calls `mediator.register_decorated(<package>)` which walks the
+entire service package, discovering all decorated handlers automatically.
+Routes are mounted explicitly per slice: `app.include_router(user_router, prefix="/v1")`.
+
+**Adding a slice:**
+```bash
+qx generate slice payment
+qx generate command payment/CapturePayment
+qx generate query payment/GetPaymentStatus
+# Then mount in main.py:
+#   from <svc>.presentation.payment import router as payment_router
+#   app.include_router(payment_router, prefix="/v1")
+```
+
+See `examples/rental-service/` for a complete VS example with `user`, `house`, `rent` slices.
 
 ---
 
@@ -432,4 +477,6 @@ handler = CheckoutHandler(uow_stub, flags)
 | Distributed lock | `qx-cache`: `DistributedLock` |
 | Async message consumer | `qx-worker`: `WorkerRuntime` |
 | gRPC API | `qx-grpc`: `create_grpc_server` |
-| Scaffold a new service | `qx new service <name>` |
+| Scaffold a new service (layered) | `qx new service <name>` |
+| Scaffold a new service (vertical slices) | `qx new service <name> --slices --domain <slice>` |
+| Add a slice to existing VS service | `qx generate slice <name>` |

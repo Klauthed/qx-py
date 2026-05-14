@@ -1,0 +1,63 @@
+# {{ service_name }}
+
+A [Qx](https://qx.dev) service using vertical-slice architecture.
+
+## Quickstart
+
+```bash
+uv sync
+docker compose -f ../deploy/docker-compose.yaml up -d  # Postgres + Redis + NATS + Grafana
+uv run alembic upgrade head
+uv run uvicorn {{ service_pkg }}.main:app --reload
+```
+
+The service listens on `http://localhost:8000`. Health checks at `/healthz` and `/readyz`;
+metrics at `/metrics`; OpenAPI docs at `/docs`.
+
+## Project layout
+
+```
+src/{{ service_pkg }}/
+  shared/         # MetaData singleton + shared infrastructure
+  {{ domain_snake }}/           # {{ domain_pascal }} slice
+    commands/     # @command_handler classes
+    queries/      # @query_handler classes
+    domain/       # aggregates, value objects, domain events
+    infrastructure/  # SQLAlchemy mappings, repositories
+    routes.py     # FastAPI router for this slice
+  main.py         # composition root
+```
+
+Each slice is self-contained. Add a new slice with:
+
+```bash
+qx generate slice <slice_name>
+```
+
+Then mount its router in `main.py`.
+
+## Generating code
+
+```bash
+qx generate slice payment
+qx generate command payment/CapturePayment
+qx generate query payment/GetPaymentStatus
+```
+
+## Testing
+
+```bash
+uv run pytest
+```
+
+## Configuration
+
+All settings come from environment variables with the prefix `QX_`.
+
+| Env var | Purpose |
+|---|---|
+| `QX_DB__URL` | Postgres connection URL |
+| `QX_CACHE__URL` | Redis URL |
+| `QX_NATS__SERVERS` | NATS servers (JSON array) |
+| `QX_LOGGING__JSON_OUTPUT` | `true` in prod, `false` for human-readable |
+| `QX_LOGGING__LEVEL` | `INFO`/`DEBUG`/etc. |

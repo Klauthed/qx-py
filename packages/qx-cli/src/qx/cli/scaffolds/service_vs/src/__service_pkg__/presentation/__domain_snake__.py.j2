@@ -1,0 +1,20 @@
+"""{{ domain_pascal }} HTTP routes."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter
+from qx.cqrs import Mediator
+from qx.http import Inject
+
+router = APIRouter(prefix="/{{ domain_kebab }}s", tags=["{{ domain_pascal }}"])
+
+# Example:
+# from {{ service_pkg }}.application.{{ domain_snake }}.commands.create_{{ domain_snake }} import (
+#     Create{{ domain_pascal }}Command,
+# )
+#
+# @router.post("/", status_code=201)
+# async def create_{{ domain_snake }}(
+#     mediator: Mediator = Inject(Mediator),
+# ) -> None:
+#     await mediator.send(Create{{ domain_pascal }}Command(...))

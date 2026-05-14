@@ -1,0 +1,17 @@
+# Per-service Docker Compose override.
+#
+# Merged on top of the shared stack (deploy/docker-compose.yaml) when you run
+# ``qx dev up`` from this directory. Use it to add service-specific containers
+# (e.g., seed jobs, mocks, secondary databases) without modifying the shared file.
+#
+# Example — add a local HTTP mock:
+#
+#   services:
+#     payment-mock:
+#       image: mockserver/mockserver:latest
+#       ports:
+#         - "1080:1080"
+
+name: {{ service_kebab }}-dev
+
+services: {}

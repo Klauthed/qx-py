@@ -1,0 +1,28 @@
+"""{{ name_pascal }} command + handler."""
+
+from __future__ import annotations
+
+from qx.core import Result
+from qx.cqrs import Command, command_handler
+from qx.db import UnitOfWork
+
+
+class {{ name_pascal }}Command(Command[None]):
+    """TODO: describe what {{ name_pascal }} does."""
+
+    # Fill in command fields here. Example:
+    # name: str
+
+
+@command_handler({{ name_pascal }}Command)
+class {{ name_pascal }}Handler:
+    """Handler for {{ name_pascal }}Command."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def handle(self, command: {{ name_pascal }}Command) -> Result[None]:
+        async with self._uow:
+            # TODO: implement the use case
+            await self._uow.commit()
+        return Result.success(None)

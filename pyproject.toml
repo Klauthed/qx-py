@@ -8,6 +8,7 @@ authors = [{ name = "Qx Engineering" }]
 dependencies = [
     "identity-service",
     "order-service",
+    "rental-service",
     "qx-py",
     "qx-core",
     "qx-di",
@@ -36,12 +37,14 @@ dependencies = [
 members = [
     "examples/identity-service",
     "examples/order-service",
+    "examples/rental-service",
     "packages/*",
 ]
 
 [tool.uv.sources]
 identity-service = { workspace = true }
 order-service = { workspace = true }
+rental-service = { workspace = true }
 qx-core = { workspace = true }
 qx-di = { workspace = true }
 qx-cqrs = { workspace = true }
@@ -136,6 +139,8 @@ mypy_path = [
     "packages/qx-cli/src",
     "packages/qx-devtools/src",
     "examples/identity-service/src",
+    "examples/order-service/src",
+    "examples/rental-service/src",
 ]
 plugins = ["pydantic.mypy"]
 

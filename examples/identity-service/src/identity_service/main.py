@@ -8,6 +8,7 @@ A separate ``identity_service.worker:main`` boots the worker (NATS consumer).
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
@@ -108,4 +109,4 @@ def build_app() -> FastAPI:
     return app
 
 
-app = build_app()
+app = build_app() if not os.environ.get("PYTEST_CURRENT_TEST") else None

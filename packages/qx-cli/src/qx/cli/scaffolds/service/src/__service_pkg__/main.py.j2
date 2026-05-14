@@ -6,6 +6,7 @@ together. ``uvicorn {{ service_pkg }}.main:app`` boots the service.
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -84,4 +85,4 @@ def build_app() -> FastAPI:
     return app
 
 
-app = build_app()
+app = build_app() if not os.environ.get("PYTEST_CURRENT_TEST") else None

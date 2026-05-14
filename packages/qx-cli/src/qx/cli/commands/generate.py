@@ -3,6 +3,12 @@
 Each subcommand expects the cwd to be a qx service directory
 (containing a ``pyproject.toml`` and a Python package matching the service
 name). The CLI infers the service package from ``pyproject.toml``.
+
+Vertical-slice services support a ``<slice>/<Name>`` syntax:
+
+    qx generate command user/CreateUser    # → user/commands/create_user.py
+    qx generate query   user/GetUser       # → user/queries/get_user.py
+    qx generate slice   payment            # → payment/ skeleton
 """
 
 from __future__ import annotations
@@ -33,7 +39,6 @@ def _service_package(start: Path | None = None) -> tuple[Path, str]:
             if not name:
                 continue
             pkg = name.replace("-", "_")
-            # Validate the package directory actually exists
             if (candidate / "src" / pkg).exists():
                 return candidate, pkg
             if (candidate / pkg).exists():
@@ -68,45 +73,57 @@ def aggregate(
 
 @app.command()
 def command(
-    name: str = typer.Argument(..., help="Command name (e.g. 'CreateUser')."),
+    name: str = typer.Argument(
+        ..., help="Command name. Use 'slice/Name' for vertical-slice services."
+    ),
     aggregate_for: str = typer.Option(
         "",
         "--aggregate",
         "-a",
-        help="Target aggregate (for layout hints).",
+        help="Target aggregate (for layout hints, layered mode only).",
     ),
     force: bool = typer.Option(False, "--force", "-f"),
 ) -> None:
-    """Generate a Command class and its handler."""
+    """Generate a Command class and its handler.
+
+    Layered:  qx generate command CreateUser
+    VS:       qx generate command user/CreateUser
+    """
     root, pkg = _service_package()
-    context = _names(name, pkg)
-    context["aggregate"] = _names(aggregate_for, pkg) if aggregate_for else None
-    files = render_tree(
-        "qx.cli.scaffolds",
-        "command",
-        root,
-        context,
-        overwrite=force,
-    )
+    if "/" in name:
+        slice_name, artifact_name = _parse_slice(name)
+        context = _names(artifact_name, pkg)
+        context.update(_slice_names(slice_name))
+        files = render_tree("qx.cli.scaffolds", "command_vs", root, context, overwrite=force)
+    else:
+        context = _names(name, pkg)
+        context["aggregate"] = _names(aggregate_for, pkg) if aggregate_for else None
+        files = render_tree("qx.cli.scaffolds", "command", root, context, overwrite=force)
     console.rule(f"[bold green]command {context['name_pascal']} generated[/bold green]")
     preview_tree(files, root)
 
 
 @app.command()
 def query(
-    name: str = typer.Argument(..., help="Query name (e.g. 'GetUser')."),
+    name: str = typer.Argument(
+        ..., help="Query name. Use 'slice/Name' for vertical-slice services."
+    ),
     force: bool = typer.Option(False, "--force", "-f"),
 ) -> None:
-    """Generate a Query class and its handler."""
+    """Generate a Query class and its handler.
+
+    Layered:  qx generate query GetUser
+    VS:       qx generate query user/GetUser
+    """
     root, pkg = _service_package()
-    context = _names(name, pkg)
-    files = render_tree(
-        "qx.cli.scaffolds",
-        "query",
-        root,
-        context,
-        overwrite=force,
-    )
+    if "/" in name:
+        slice_name, artifact_name = _parse_slice(name)
+        context = _names(artifact_name, pkg)
+        context.update(_slice_names(slice_name))
+        files = render_tree("qx.cli.scaffolds", "query_vs", root, context, overwrite=force)
+    else:
+        context = _names(name, pkg)
+        files = render_tree("qx.cli.scaffolds", "query", root, context, overwrite=force)
     console.rule(f"[bold green]query {context['name_pascal']} generated[/bold green]")
     preview_tree(files, root)
 
@@ -179,6 +196,32 @@ def endpoint(
     preview_tree(files, root)
 
 
+@app.command(name="slice")
+def generate_slice(
+    name: str = typer.Argument(..., help="Slice name (e.g. 'payment', 'user')."),
+    force: bool = typer.Option(False, "--force", "-f"),
+) -> None:
+    """Generate a new vertical slice (application/<slice>/commands/, queries/, presentation/<slice>.py).
+
+    After generating, mount the new router in main.py:
+
+        from <service>.presentation.payment import router as payment_router
+        app.include_router(payment_router, prefix="/v1")
+    """
+    root, pkg = _service_package()
+    context = _slice_names(name)
+    context["service_pkg"] = pkg
+    files = render_tree("qx.cli.scaffolds", "slice", root, context, overwrite=force)
+    console.rule(f"[bold green]slice {context['slice_name_pascal']} generated[/bold green]")
+    preview_tree(files, root)
+    console.print(
+        "\n[bold]Wire the router in main.py:[/bold]\n"
+        f"  from {pkg}.presentation.{context['slice_name_snake']} import router as "
+        f"{context['slice_name_snake']}_router\n"
+        f'  app.include_router({context["slice_name_snake"]}_router, prefix="/v1")\n'
+    )
+
+
 # ---- helpers ----
 
 
@@ -192,6 +235,26 @@ def _names(name: str, pkg: str) -> dict[str, Any]:
         "name_upper": snake.upper(),
         "service_pkg": pkg,
     }
+
+
+def _slice_names(slice_name: str) -> dict[str, Any]:
+    """Build naming variants for a slice."""
+    snake = _snake(slice_name)
+    return {
+        "slice_name_snake": snake,
+        "slice_name_pascal": _pascal(slice_name),
+        "slice_name_kebab": _kebab(slice_name),
+    }
+
+
+def _parse_slice(name: str) -> tuple[str, str]:
+    """Split 'user/CreateUser' → ('user', 'CreateUser')."""
+    parts = name.split("/", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise typer.BadParameter(
+            f"Invalid format '{name}'. Use '<slice>/<Name>' (e.g. 'user/CreateUser')."
+        )
+    return parts[0], parts[1]
 
 
 def _snake(s: str) -> str:

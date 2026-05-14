@@ -22,11 +22,23 @@ def service(
         help="Directory to create the project in.",
     ),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing files."),
+    slices: bool = typer.Option(
+        False,
+        "--slices/--no-slices",
+        help="Use vertical-slice layout (feature-first) instead of layered.",
+    ),
+    domain: str = typer.Option(
+        "",
+        "--domain",
+        "-d",
+        help="Starter slice name for --slices (defaults to service name).",
+    ),
 ) -> None:
     """Scaffold a new qx service.
 
-    Generates a fully wired service with application/domain/infrastructure/
-    presentation layers, a Dockerfile, alembic config, and a passing test.
+    By default generates a layered service (application/domain/infrastructure/
+    presentation). With --slices, generates a vertical-slice layout where each
+    feature is self-contained under its own directory.
     """
     pkg_name = _snake(name)
     context = {
@@ -36,6 +48,16 @@ def service(
         "service_kebab": _kebab(name),
         "service_pkg_path": pkg_name.replace("_", "/"),
     }
+
+    if slices:
+        domain_snake = _snake(domain) if domain else pkg_name
+        context["domain_snake"] = domain_snake
+        context["domain_pascal"] = _pascal(domain_snake)
+        context["domain_kebab"] = _kebab(domain_snake)
+        template = "service_vs"
+    else:
+        template = "service"
+
     dest = target / context["service_kebab"]
     if dest.exists() and not force and any(dest.iterdir()):
         console.print(f"[red]error[/red] {dest} exists and is not empty (use --force to overwrite)")
@@ -44,21 +66,30 @@ def service(
 
     files = render_tree(
         "qx.cli.scaffolds",
-        "service",
+        template,
         dest,
         context,
         overwrite=force,
     )
     console.rule("[bold green]Service scaffolded[/bold green]")
     preview_tree(files, dest)
-    console.print(
+
+    next_steps = (
         "\n[bold]Next steps:[/bold]\n"
         f"  cd {context['service_kebab']}\n"
         "  uv sync\n"
         "  qx dev up          # start Postgres · Redis · NATS · Grafana\n"
         "  uv run alembic upgrade head\n"
-        "  uv run uvicorn " + f"{pkg_name}.main:app --reload\n"
+        f"  uv run uvicorn {pkg_name}.main:app --reload\n"
     )
+    if slices:
+        next_steps += (
+            "\n[bold]Add more slices:[/bold]\n"
+            "  qx generate slice <slice_name>\n"
+            "  qx generate command <slice_name>/<CommandName>\n"
+            "  qx generate query <slice_name>/<QueryName>\n"
+        )
+    console.print(next_steps)
 
 
 def _snake(s: str) -> str:

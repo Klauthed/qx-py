@@ -1,6 +1,6 @@
 [project]
 name = "qx-regions"
-version = "0.2.0"
+version = "1.0.0"
 description = "Qx multi-region: tenant home-region resolution, write routing, and cross-region event replication"
 readme = "README.md"
 requires-python = ">=3.14"

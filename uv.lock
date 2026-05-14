@@ -32,6 +32,7 @@ members = [
     "qx-search",
     "qx-testing",
     "qx-worker",
+    "rental-service",
 ]
 
 [[package]]
@@ -1410,7 +1411,7 @@ wheels = [
 
 [[package]]
 name = "qx-auth"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-auth" }
 dependencies = [
     { name = "cryptography" },
@@ -1435,7 +1436,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-cache"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-cache" }
 dependencies = [
     { name = "qx-core" },
@@ -1452,7 +1453,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-cli"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-cli" }
 dependencies = [
     { name = "jinja2" },
@@ -1475,7 +1476,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-core"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-core" }
 dependencies = [
     { name = "pydantic" },
@@ -1492,7 +1493,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-cqrs"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-cqrs" }
 dependencies = [
     { name = "pydantic" },
@@ -1509,7 +1510,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-db"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-db" }
 dependencies = [
     { name = "alembic" },
@@ -1536,12 +1537,12 @@ requires-dist = [
 
 [[package]]
 name = "qx-devtools"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-devtools" }
 
 [[package]]
 name = "qx-di"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-di" }
 dependencies = [
     { name = "qx-core" },
@@ -1556,7 +1557,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-events"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-events" }
 dependencies = [
     { name = "nats-py" },
@@ -1581,7 +1582,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-eventstore"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-eventstore" }
 dependencies = [
     { name = "qx-core" },
@@ -1596,7 +1597,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-flags"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-flags" }
 dependencies = [
     { name = "openfeature-sdk" },
@@ -1611,7 +1612,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-grpc"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-grpc" }
 dependencies = [
     { name = "grpcio" },
@@ -1636,7 +1637,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-http"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-http" }
 dependencies = [
     { name = "fastapi" },
@@ -1661,7 +1662,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-observability"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-observability" }
 dependencies = [
     { name = "opentelemetry-api" },
@@ -1690,7 +1691,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-projections"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-projections" }
 dependencies = [
     { name = "qx-core" },
@@ -1707,7 +1708,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-py"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-py" }
 dependencies = [
     { name = "qx-auth" },
@@ -1784,6 +1785,7 @@ dependencies = [
     { name = "qx-search" },
     { name = "qx-testing" },
     { name = "qx-worker" },
+    { name = "rental-service" },
 ]
 
 [package.dev-dependencies]
@@ -1823,6 +1825,7 @@ requires-dist = [
     { name = "qx-search", editable = "packages/qx-search" },
     { name = "qx-testing", editable = "packages/qx-testing" },
     { name = "qx-worker", editable = "packages/qx-worker" },
+    { name = "rental-service", editable = "examples/rental-service" },
 ]
 
 [package.metadata.requires-dev]
@@ -1839,7 +1842,7 @@ dev = [
 
 [[package]]
 name = "qx-regions"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-regions" }
 dependencies = [
     { name = "pydantic-settings" },
@@ -1860,7 +1863,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-saga"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-saga" }
 dependencies = [
     { name = "qx-core" },
@@ -1877,7 +1880,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-search"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-search" }
 dependencies = [
     { name = "opensearch-py", extra = ["async"] },
@@ -1896,7 +1899,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-testing"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-testing" }
 dependencies = [
     { name = "httpx" },
@@ -1931,7 +1934,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-worker"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "packages/qx-worker" }
 dependencies = [
     { name = "nats-py" },
@@ -1967,6 +1970,44 @@ wheels = [
 hiredis = [
     { name = "hiredis" },
 ]
+
+[[package]]
+name = "rental-service"
+version = "0.1.0"
+source = { editable = "examples/rental-service" }
+dependencies = [
+    { name = "qx-core" },
+    { name = "qx-cqrs" },
+    { name = "qx-db" },
+    { name = "qx-di" },
+    { name = "qx-events" },
+    { name = "qx-http" },
+    { name = "qx-observability" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "qx-testing" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
+    { name = "qx-core", editable = "packages/qx-core" },
+    { name = "qx-cqrs", editable = "packages/qx-cqrs" },
+    { name = "qx-db", editable = "packages/qx-db" },
+    { name = "qx-di", editable = "packages/qx-di" },
+    { name = "qx-events", editable = "packages/qx-events" },
+    { name = "qx-http", editable = "packages/qx-http" },
+    { name = "qx-observability", editable = "packages/qx-observability" },
+    { name = "qx-testing", marker = "extra == 'dev'", editable = "packages/qx-testing" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "requests"

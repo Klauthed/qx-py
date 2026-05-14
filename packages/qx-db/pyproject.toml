@@ -1,6 +1,6 @@
 [project]
 name = "qx-db"
-version = "0.2.0"
+version = "1.0.0"
 description = "Qx database layer: SQLAlchemy 2 async, repositories, unit of work, transactional outbox"
 readme = "README.md"
 requires-python = ">=3.14"
