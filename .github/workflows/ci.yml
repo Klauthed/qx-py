@@ -140,7 +140,7 @@ jobs:
       - run: uv sync --frozen
 
       - name: Scaffold new service
-        run: uv run qx new service --name smoke-test --target /tmp/smoke-test
+        run: uv run qx new service smoke-test --target /tmp/smoke-test
 
       - name: pytest (scaffolded service)
         working-directory: /tmp/smoke-test

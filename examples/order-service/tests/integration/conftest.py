@@ -41,6 +41,7 @@ def engine(db_url: str) -> AsyncEngine:
     from order_service.infrastructure.projections.order_summary import (  # noqa: PLC0415
         include_order_summaries_table,
     )
+    from qx.db.outbox import include_outbox_table  # noqa: PLC0415
     from qx.eventstore import include_eventstore_tables  # noqa: PLC0415
     from qx.projections import include_projection_tables  # noqa: PLC0415
     from sqlalchemy import MetaData  # noqa: PLC0415
@@ -54,6 +55,7 @@ def engine(db_url: str) -> AsyncEngine:
         include_eventstore_tables(meta)
         include_projection_tables(meta)
         include_order_summaries_table(meta)
+        include_outbox_table(meta)
         async with eng.begin() as conn:
             await conn.run_sync(meta.create_all)
 
@@ -93,7 +95,8 @@ def _clean_tables(db_url: str) -> None:  # type: ignore[misc]
                 await conn.execute(
                     text(
                         "TRUNCATE TABLE qx_aggregate_events, qx_aggregate_snapshots,"
-                        " qx_projection_checkpoints, qx_order_summaries RESTART IDENTITY CASCADE"
+                        " qx_projection_checkpoints, qx_order_summaries, qx_outbox_events"
+                        " RESTART IDENTITY CASCADE"
                     )
                 )
         finally:

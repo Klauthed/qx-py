@@ -19,7 +19,4 @@ async def measure[T](n: int, fn: Callable[[], Awaitable[T]]) -> tuple[float, flo
 
 
 def report(label: str, ops: float, total_ms: float, n: int) -> None:
-    print(
-        f"\n  {label:<50}  {ops:>10,.0f} ops/s  "
-        f"({total_ms:.1f} ms / {n:,} iterations)"
-    )
+    print(f"\n  {label:<50}  {ops:>10,.0f} ops/s  ({total_ms:.1f} ms / {n:,} iterations)")
