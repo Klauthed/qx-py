@@ -10,7 +10,10 @@ from pydantic import BaseModel
 from qx.cqrs import Mediator
 from qx.http import Inject, unwrap
 
-from rental_service.application.rent.commands.create_rental import CreateRentalCommand, CreateRentalDto
+from rental_service.application.rent.commands.create_rental import (
+    CreateRentalCommand,
+    CreateRentalDto,
+)
 from rental_service.application.rent.queries.get_rental import GetRentalQuery, RentalDto
 
 router = APIRouter(prefix="/rentals", tags=["rentals"])

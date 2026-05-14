@@ -33,7 +33,7 @@ def db_url(pg) -> str:  # type: ignore[no-untyped-def]
     url: str = re.sub(r"postgresql\+?\w*://", "postgresql+asyncpg://", raw, count=1)
     os.environ["QX_DB__URL"] = url
     yield url  # type: ignore[misc]
-    del os.environ["QX_DB__URL"]
+    os.environ.pop("QX_DB__URL", None)
 
 
 @pytest.fixture(scope="session")

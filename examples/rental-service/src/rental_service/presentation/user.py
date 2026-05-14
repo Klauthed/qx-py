@@ -9,8 +9,14 @@ from pydantic import BaseModel
 from qx.cqrs import Mediator
 from qx.http import Inject, unwrap
 
-from rental_service.application.user.commands.register_user import RegisterUserCommand, RegisterUserDto
-from rental_service.application.user.queries.get_user_profile import GetUserProfileQuery, UserProfileDto
+from rental_service.application.user.commands.register_user import (
+    RegisterUserCommand,
+    RegisterUserDto,
+)
+from rental_service.application.user.queries.get_user_profile import (
+    GetUserProfileQuery,
+    UserProfileDto,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
