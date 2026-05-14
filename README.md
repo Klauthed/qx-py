@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/python-%3E%3D3.14-blue)](https://www.python.org/)
 [![uv](https://img.shields.io/badge/packaged%20with-uv-orange)](https://docs.astral.sh/uv/)
 
-Fifteen composable packages covering domain modeling, CQRS/Mediator, transactional outbox, async SQLAlchemy persistence, NATS JetStream messaging, observability (OTel + Prometheus + structlog), auth, gRPC, search, testing utilities, CLI scaffolding, and devtools. Ships with a reference identity service demonstrating every concept end to end.
+21 composable packages covering domain modeling, CQRS/Mediator, event sourcing, sagas, projections, transactional outbox, async SQLAlchemy persistence, NATS JetStream messaging, observability (OTel + Prometheus + structlog), auth, gRPC, search, feature flags, multi-region routing, testing utilities, CLI scaffolding, and devtools. Ships with two reference services demonstrating every concept end to end.
 
 ---
 
@@ -37,19 +37,25 @@ HTTP request
 |---|---|
 | **qx-core** | `Result[T]`, `Error` hierarchy, `Entity` / `AggregateRoot`, `DomainEvent` / `IntegrationEvent`, `Identifier` (UUID v7 default), `RequestContext`, pagination shapes, `QxSettings` |
 | **qx-di** | Async DI container — `SINGLETON` / `SCOPED` / `TRANSIENT` lifetimes, child scopes, override, cycle detection |
-| **qx-cqrs** | `Command` / `Query` types, `Mediator` with pipeline behaviors (logging, tracing, metrics, idempotency, exception mapping) |
-| **qx-db** | SQLAlchemy 2 async, generic `Repository[TEntity]`, `UnitOfWork` with domain-event → outbox routing, cursor + offset pagination |
-| **qx-http** | FastAPI envelope, `Inject()` DI bridge, `scope_dep`, `unwrap`, `envelope_success`, Metrics + RequestContext middleware |
+| **qx-cqrs** | `Command` / `Query` types, `Mediator` with pipeline behaviors (logging, tracing, metrics, idempotency, exception mapping); `trace_behaviors=True` for per-behavior OTel spans |
+| **qx-db** | SQLAlchemy 2 async, generic `Repository[TEntity]`, `UnitOfWork` with outbox routing, cursor + offset pagination, multi-tenancy (RLS / schema / DB-per-tenant), `advisory_lock` / `advisory_xact_lock` context managers |
+| **qx-http** | FastAPI envelope, `Inject()` DI bridge, `scope_dep`, `unwrap`, `envelope_success`, Metrics + RequestContext middleware (W3C `traceparent` extraction) |
 | **qx-observability** | One-call `setup_observability()` — structlog, OpenTelemetry tracing, Prometheus metrics, health probes |
-| **qx-events** | `EventRegistry`, NATS JetStream publisher/consumer, `OutboxRelay` with optional leader election |
-| **qx-worker** | NATS consumer runtime, ack/nak/drop semantics, signal handling |
+| **qx-events** | `EventRegistry`, NATS JetStream publisher/consumer, `OutboxRelay` with optional leader election and hash-based sharding |
+| **qx-worker** | NATS consumer runtime, ack/nak/drop semantics, signal handling, Dead Letter Queue (persist exhausted messages to `qx_dead_letters`, `qx_worker_dlq_total` counter) |
 | **qx-cache** | Redis client, Lua-atomic `IdempotencyStore`, `DistributedLock` |
-| **qx-auth** | JWT validation, OIDC discovery, RBAC with wildcards, `PolicyEvaluator`, token-bucket rate limiter |
-| **qx-grpc** | gRPC server factory, `RequestContext` / Metrics / Exception interceptors |
-| **qx-search** | OpenSearch async client, `SearchRepository[TDoc]` abstract base |
-| **qx-testing** | testcontainers helpers, `MediatorStub`, `RepositoryStub`, `OutboxAssert` |
-| **qx-cli** | `qx new service`, `generate aggregate/command/query/event`, `dev up/down` |
-| **qx-devtools** | Shared ruff / mypy / pre-commit / editorconfig configs |
+| **qx-auth** | JWT validation, OIDC discovery, RBAC with wildcards, `PolicyEvaluator`, token-bucket rate limiter, HTTP middleware, token revocation |
+| **qx-grpc** | gRPC server factory, `RequestContext` / Metrics / Exception / `JwtAuth` interceptors; per-method histogram buckets; all 4 handler shapes |
+| **qx-search** | OpenSearch async client, `SearchRepository[TDoc]` abstract base, `bulk_index()`, `scroll()` |
+| **qx-flags** | `FlagClient`, `InMemoryProvider`, OpenFeature evaluation with `RequestContext` targeting |
+| **qx-regions** | `RegionRouter`, `StaticRegionResolver`, `DbRegionResolver`, `RegionRedirectMiddleware` |
+| **qx-eventstore** | `EventSourcedAggregate`, `EventStore` (append / load), snapshot support, optimistic-concurrency conflict metrics |
+| **qx-saga** | `Saga`, `SagaManager`, `@on`, `@on_timeout`, distributed lock via `lock_factory`, `compensate()` exponential-backoff retry |
+| **qx-projections** | `Projection`, `ProjectionRunner`, incremental checkpointing |
+| **qx-testing** | testcontainers helpers, `MediatorStub`, `RepositoryStub`, `OutboxAssert`, `InMemorySearchRepository` |
+| **qx-cli** | `qx new service`, `generate aggregate/command/query/event/esaggregate`, `dev up/down`, `doctor`, `projections status/rebuild`, `dlq list/replay` |
+| **qx-devtools** | Shared ruff / mypy / pre-commit / editorconfig configs via `write_configs()` |
+| **qx-py** | Meta-package — installs all 20 packages above in one `pip install qx-py` |
 
 ---
 
@@ -74,21 +80,38 @@ uv run qx new service my-svc
 
 ---
 
-## Reference service
+## Reference services
 
-[`examples/identity-service/`](examples/identity-service/) is a complete user-registration microservice demonstrating the full vertical slice — HTTP → Command → Domain Aggregate → Repository → UnitOfWork → Outbox → Worker → Integration Event.
+### identity-service
+
+[`examples/identity-service/`](examples/identity-service/) is a complete user-registration microservice demonstrating the full vertical slice — HTTP → Command → Domain Aggregate → Repository → UnitOfWork → Outbox → Worker → Integration Event. Includes feature flags, region redirect, JWT middleware, and multi-tenancy E2E tests.
 
 ```
 src/identity_service/
-├── domain/aggregates/user/    # User aggregate + domain events
+├── domain/aggregates/user/     # User aggregate + domain events
 ├── application/
-│   ├── commands/              # CreateUser, ChangeEmail handlers
-│   └── queries/               # GetUser, ListUsers handlers
+│   ├── commands/               # CreateUser, ChangeEmail handlers
+│   └── queries/                # GetUser, ListUsers handlers
 ├── infrastructure/persistence/ # UserRepository + SQLAlchemy mapping
-└── presentation/routes/       # FastAPI routes using Mediator
+└── presentation/routes/        # FastAPI routes using Mediator
 ```
 
-Integration tests run against a real Postgres container via testcontainers — see [`tests/integration/`](examples/identity-service/tests/integration/).
+### order-service
+
+[`examples/order-service/`](examples/order-service/) demonstrates the **event-sourced** pattern: `Order` aggregate with append-only event log, `OrderSummaryProjection` read model, and `OrderFulfillmentSaga` (30-min timeout + compensation).
+
+```
+src/order_service/
+├── domain/aggregates/order/    # EventSourcedAggregate + OrderPlaced/Confirmed/Cancelled
+├── application/
+│   ├── commands/               # PlaceOrder, ConfirmOrder, CancelOrder
+│   └── queries/                # GetOrder (reads from projection)
+├── infrastructure/projections/ # OrderSummaryProjection → qx_order_summaries
+├── sagas/                      # OrderFulfillmentSaga
+└── presentation/routes/        # REST endpoints
+```
+
+Both services include integration tests that run against a real Postgres container via testcontainers.
 
 ---
 

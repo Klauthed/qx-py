@@ -1,0 +1,132 @@
+{
+  "title": "Qx — Worker",
+  "uid": "qx-worker",
+  "description": "NATS JetStream consumer: consumer lag, message throughput, processing duration, dead-letter queue, and in-flight gauge.",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["qx", "worker"],
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "consumer",
+        "label": "Consumer",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "query": "label_values(qx_worker_consumer_lag, consumer)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Consumer Lag (num_pending)",
+      "description": "JetStream num_pending — messages in stream not yet delivered. Spike = processing falling behind.",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "targets": [
+        {
+          "expr": "qx_worker_consumer_lag{consumer=~\"$consumer\"}",
+          "legendFormat": "{{consumer}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Messages In-Flight",
+      "description": "Number of messages currently being processed (acked or nacked not yet counted).",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "targets": [
+        {
+          "expr": "qx_worker_messages_inflight",
+          "legendFormat": "in-flight"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Message Throughput (rate)",
+      "description": "Messages processed per second, broken down by result (ack / nak / drop / dlq).",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(qx_worker_messages_total[2m]))",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "DLQ Rate",
+      "description": "Messages moved to the dead letter queue per second. Non-zero = handlers exhausting all retries.",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {"lineWidth": 2},
+          "color": {"mode": "fixed", "fixedColor": "red"}
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (event_name) (rate(qx_worker_dlq_total[2m]))",
+          "legendFormat": "dlq: {{event_name}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Message Processing Duration (p50 / p95 / p99)",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, event_name) (rate(qx_worker_message_duration_seconds_bucket[2m])))",
+          "legendFormat": "p50 {{event_name}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, event_name) (rate(qx_worker_message_duration_seconds_bucket[2m])))",
+          "legendFormat": "p95 {{event_name}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, event_name) (rate(qx_worker_message_duration_seconds_bucket[2m])))",
+          "legendFormat": "p99 {{event_name}}"
+        }
+      ]
+    }
+  ]
+}

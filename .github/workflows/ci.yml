@@ -65,7 +65,7 @@ jobs:
         run: uv run pytest packages/ -q --tb=short
 
       - name: pytest (examples — unit/smoke)
-        run: uv run pytest examples/ -q --tb=short --ignore=examples/identity-service/tests/integration
+        run: uv run pytest examples/ -q --tb=short --ignore=examples/identity-service/tests/integration --ignore=examples/order-service/tests/integration
 
   # ── VS Code extension ───────────────────────────────────────────────────────
   vscode-ext:
@@ -101,7 +101,51 @@ jobs:
       # testcontainers uses the Docker daemon that ships with ubuntu-latest.
       # Disabling Ryuk avoids a race between the reaper and the runner's
       # Docker daemon teardown at the end of the job.
-      - name: pytest (integration — real Postgres via testcontainers)
+      - name: pytest (identity-service integration — real Postgres via testcontainers)
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
         run: uv run pytest examples/identity-service/tests/integration/ -q --tb=short
+
+  # ── Order-service integration tests ─────────────────────────────────────────
+  test-order-service:
+    name: Order-service integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: pytest (order-service integration — real Postgres via testcontainers)
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+        run: uv run pytest examples/order-service/tests/integration/ -q --tb=short
+
+  # ── qx new service scaffold smoke test ──────────────────────────────────────
+  test-scaffold:
+    name: qx new service scaffold smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Scaffold new service
+        run: uv run qx new service --name smoke-test --target /tmp/smoke-test
+
+      - name: pytest (scaffolded service)
+        working-directory: /tmp/smoke-test
+        run: uv run pytest -q --tb=short
+
+      - name: mypy (scaffolded service)
+        working-directory: /tmp/smoke-test
+        run: uv run mypy src/

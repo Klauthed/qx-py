@@ -92,8 +92,8 @@ Initial release of all 21 packages with core capabilities.
 - [x] `qx-observability` span auto-instrumentation for `Mediator` pipeline (each behavior gets its own child span via `trace_behaviors=True`)
 - [x] `qx-grpc` `MetricsInterceptor` histogram buckets — configurable per-method latency buckets via `per_method_buckets`
 - [x] `qx-worker` consumer lag metric — expose JetStream `num_pending` as a Prometheus gauge (polled every 15s)
-- [ ] Benchmark suite (`tests/benchmarks/`) — baseline throughput for Mediator dispatch, EventStore append/load, outbox relay throughput
-- [ ] Grafana dashboard definitions in `deploy/grafana/` — one dashboard per package (worker lag, mediator latency, DB pool, gRPC calls)
+- [x] Benchmark suite (`tests/benchmarks/`) — baseline throughput for Mediator dispatch, EventStore append/load, outbox relay throughput
+- [x] Grafana dashboard definitions in `deploy/grafana/` — one dashboard per package (worker lag, mediator latency, DB pool, gRPC calls)
 
 ---
 
@@ -113,14 +113,14 @@ Initial release of all 21 packages with core capabilities.
 **Gate criteria — all must pass before tagging v1.0.0:**
 
 - [ ] All 21 packages live on PyPI (unblocked from rate limiting)
-- [ ] Test coverage ≥ 80% across all packages (`uv run pytest --cov packages/ --cov-fail-under=80`)
-- [ ] Zero `mypy --strict` errors across all package source trees (test files excluded)
-- [ ] `uv run ruff check .` exits 0 with no suppressions added after v0.4.0
-- [ ] `CHANGELOG.md` — one entry per released version with breaking changes highlighted
-- [ ] `qx new service` smoke test passes in CI (scaffold → test → type-check pipeline)
-- [ ] All example services (`identity-service`, `order-service`) pass integration tests in CI against real containers
-- [ ] GitHub Actions release workflow triggers PyPI publish on `v*` tag push
-- [ ] `README.md` / `BOOTSTRAP.md` / `CAPABILITIES.md` reflect v1.0.0 API surface
+- [x] Test coverage ≥ 80% across all packages (`uv run pytest --cov packages/ --cov-fail-under=80`) — 86% measured
+- [x] Zero `mypy --strict` errors across all package source trees (test files excluded) — 88 files, 0 errors
+- [x] `uv run ruff check .` exits 0 with no suppressions added after v0.4.0
+- [x] `CHANGELOG.md` — one entry per released version with breaking changes highlighted
+- [x] `qx new service` smoke test passes in CI (scaffold → test → type-check pipeline)
+- [x] All example services (`identity-service`, `order-service`) pass integration tests in CI against real containers
+- [x] GitHub Actions release workflow triggers PyPI publish on `v*` tag push
+- [x] `README.md` / `BOOTSTRAP.md` / `CAPABILITIES.md` reflect v1.0.0 API surface
 
 ---
 

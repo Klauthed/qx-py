@@ -1,0 +1,151 @@
+{
+  "title": "Qx — Database & Outbox",
+  "uid": "qx-db",
+  "description": "Outbox relay health (pending rows, integration event throughput) and EventStore optimistic-concurrency conflict rate.",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["qx", "db", "outbox", "eventstore"],
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {"list": []},
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Outbox Pending (current)",
+      "description": "Unprocessed rows in qx_outbox_events right now. Should stay near zero under normal operation.",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 100},
+              {"color": "red", "value": 1000}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "expr": "qx_outbox_pending",
+          "legendFormat": "pending"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Outbox Pending Over Time",
+      "description": "Sustained growth = relay is falling behind publishing to NATS.",
+      "gridPos": {"h": 8, "w": 18, "x": 6, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {"fillOpacity": 10, "lineWidth": 2},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 100},
+              {"color": "red", "value": 1000}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "qx_outbox_pending",
+          "legendFormat": "pending rows"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Integration Event Throughput (rate)",
+      "description": "Integration events crossing the service boundary per second. 'out' = outbox published; 'in' = consumed by this service.",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "sum by (name, direction) (rate(qx_integration_event_total[2m]))",
+          "legendFormat": "{{name}} ({{direction}})"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "EventStore Version Conflicts (rate)",
+      "description": "Optimistic concurrency conflicts in EventStore.append() per second. Non-zero = concurrent writes on the same aggregate — expect client retries.",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {"lineWidth": 2},
+          "color": {"mode": "fixed", "fixedColor": "orange"}
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (aggregate_type) (rate(qx_eventstore_version_conflicts_total[2m]))",
+          "legendFormat": "{{aggregate_type}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "HTTP Request Throughput by Route",
+      "description": "HTTP requests per second served by this service, broken down by route and status code.",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "sum by (method, route, status) (rate(qx_http_request_total[2m]))",
+          "legendFormat": "{{method}} {{route}} {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "HTTP Request Latency (p50 / p95 / p99)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, route) (rate(qx_http_request_duration_seconds_bucket[2m])))",
+          "legendFormat": "p50 {{route}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(qx_http_request_duration_seconds_bucket[2m])))",
+          "legendFormat": "p95 {{route}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(qx_http_request_duration_seconds_bucket[2m])))",
+          "legendFormat": "p99 {{route}}"
+        }
+      ]
+    }
+  ]
+}

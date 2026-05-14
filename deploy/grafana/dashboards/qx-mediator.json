@@ -1,0 +1,162 @@
+{
+  "title": "Qx — Mediator",
+  "uid": "qx-mediator",
+  "description": "Mediator pipeline: command and query latency (p50/p95/p99), throughput, and error rates.",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["qx", "mediator", "cqrs"],
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "command",
+        "label": "Command",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "query": "label_values(qx_command_total, name)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {}
+      },
+      {
+        "name": "query",
+        "label": "Query",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "query": "label_values(qx_query_total, name)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Command Latency (p50 / p95 / p99)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, name) (rate(qx_command_duration_seconds_bucket{name=~\"$command\"}[2m])))",
+          "legendFormat": "p50 {{name}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, name) (rate(qx_command_duration_seconds_bucket{name=~\"$command\"}[2m])))",
+          "legendFormat": "p95 {{name}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, name) (rate(qx_command_duration_seconds_bucket{name=~\"$command\"}[2m])))",
+          "legendFormat": "p99 {{name}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Query Latency (p50 / p95 / p99)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, name) (rate(qx_query_duration_seconds_bucket{name=~\"$query\"}[2m])))",
+          "legendFormat": "p50 {{name}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, name) (rate(qx_query_duration_seconds_bucket{name=~\"$query\"}[2m])))",
+          "legendFormat": "p95 {{name}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, name) (rate(qx_query_duration_seconds_bucket{name=~\"$query\"}[2m])))",
+          "legendFormat": "p99 {{name}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Command Throughput (rate)",
+      "description": "Commands dispatched per second, by name and outcome (success / failure).",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "sum by (name, outcome) (rate(qx_command_total{name=~\"$command\"}[2m]))",
+          "legendFormat": "{{name}} / {{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Query Throughput (rate)",
+      "description": "Queries dispatched per second, by name and outcome.",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "sum by (name, outcome) (rate(qx_query_total{name=~\"$query\"}[2m]))",
+          "legendFormat": "{{name}} / {{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Command Error Rate",
+      "description": "Failure outcomes as a fraction of total command dispatches. Above 1% warrants investigation.",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "max": 1,
+          "custom": {"lineWidth": 2},
+          "color": {"mode": "fixed", "fixedColor": "red"}
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (name) (rate(qx_command_total{outcome!=\"success\", name=~\"$command\"}[2m])) / sum by (name) (rate(qx_command_total{name=~\"$command\"}[2m]))",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Domain Events Published (rate)",
+      "description": "In-process domain events raised by aggregates per second.",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "sum by (name) (rate(qx_event_total[2m]))",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    }
+  ]
+}

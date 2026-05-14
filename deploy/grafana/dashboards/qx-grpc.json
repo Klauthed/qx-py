@@ -1,0 +1,121 @@
+{
+  "title": "Qx — gRPC",
+  "uid": "qx-grpc",
+  "description": "gRPC server calls: per-method latency (p50/p95/p99), request rate, and error status breakdown.",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["qx", "grpc"],
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "method",
+        "label": "Method",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "query": "label_values(qx_grpc_method_duration_seconds_count, method)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "gRPC Method Latency — p50",
+      "description": "Median latency per gRPC method.",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, method) (rate(qx_grpc_method_duration_seconds_bucket{method=~\"$method\"}[2m])))",
+          "legendFormat": "p50 {{method}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "gRPC Method Latency — p95",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, method) (rate(qx_grpc_method_duration_seconds_bucket{method=~\"$method\"}[2m])))",
+          "legendFormat": "p95 {{method}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "gRPC Method Latency — p99",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, method) (rate(qx_grpc_method_duration_seconds_bucket{method=~\"$method\"}[2m])))",
+          "legendFormat": "p99 {{method}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "gRPC Request Rate (per method)",
+      "description": "Calls per second. Drop to zero = service not receiving traffic or all calls timing out.",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "sum by (method) (rate(qx_grpc_method_duration_seconds_count{method=~\"$method\"}[2m]))",
+          "legendFormat": "{{method}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "gRPC Latency Heatmap — all methods",
+      "description": "P50 / P95 / P99 across all methods combined.",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "custom": {"lineWidth": 2}}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(qx_grpc_method_duration_seconds_bucket[2m])))",
+          "legendFormat": "p50 (all)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(qx_grpc_method_duration_seconds_bucket[2m])))",
+          "legendFormat": "p95 (all)"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(qx_grpc_method_duration_seconds_bucket[2m])))",
+          "legendFormat": "p99 (all)"
+        }
+      ]
+    }
+  ]
+}

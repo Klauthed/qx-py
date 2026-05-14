@@ -90,6 +90,8 @@ services:
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
     volumes:
       - ./observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./grafana/provisioning.yaml:/etc/grafana/provisioning/dashboards/qx.yaml:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafanadata:/var/lib/grafana
     depends_on:
       - prometheus

@@ -163,6 +163,18 @@ result = await mediator.send(CreateUserCommand(email="x@y.com", name="X"))
 | `LoggingBehavior` | Structured log on entry/exit with timing |
 | `ExceptionTranslationBehavior` | Converts unhandled exceptions to `InfrastructureError` |
 
+### OpenTelemetry span auto-instrumentation
+
+```python
+mediator = Mediator(
+    container,
+    command_behaviors=(...),
+    trace_behaviors=True,   # wraps each behavior in a child OTel span
+)
+```
+
+Lazy import — no hard dependency on `opentelemetry-sdk`.
+
 ---
 
 ## qx-db — Database & Persistence
@@ -233,6 +245,22 @@ run_async_migrations_all_schemas(target_metadata, schema_prefix="tenant_")
 `DefaultOutboxRecorder` writes integration events to `qx_outbox_events`
 table inside the same transaction. The outbox relay (in `qx-events`) reads
 and publishes them to NATS JetStream.
+
+### Advisory locks
+
+```python
+from qx.db import advisory_lock, advisory_xact_lock, advisory_key
+
+key = advisory_key("my-resource")   # stable bigint from string via SHA-256
+
+# Session-level lock (released when session closes)
+async with advisory_lock(session, key):
+    ...
+
+# Transaction-level lock (released on COMMIT/ROLLBACK)
+async with advisory_xact_lock(session, key):
+    ...
+```
 
 ---
 
@@ -515,6 +543,27 @@ async def main() -> None:
 - Acks on success or `PermanentWorkerError`; naks (with delay) on transient errors.
 - Multiple worker replicas are safe — NATS load-balances.
 
+### Dead Letter Queue
+
+After `max_deliver` naks the message is moved to the DLQ instead of being dropped:
+
+```python
+from qx.worker import WorkerRuntime, DeadLetterStore
+
+runtime = WorkerRuntime(
+    ...,
+    dlq=DeadLetterStore(engine),   # persists exhausted messages to qx_dead_letters
+)
+```
+
+`qx_worker_dlq_total` Prometheus counter is incremented on each DLQ write.
+Inspect and replay dead letters from the CLI: `qx dlq list` / `qx dlq replay <id>`.
+
+### Consumer lag metric
+
+`NatsConsumer.num_pending()` returns the JetStream `num_pending` value for the durable consumer.
+`WorkerRuntime` polls this every 15 s and exposes it as a Prometheus gauge.
+
 ---
 
 ## qx-events — Event Registry & Outbox Relay
@@ -575,6 +624,8 @@ class Account(EventSourcedAggregate[Identifier]):
 Snapshots are stored in `qx_aggregate_snapshots` (configurable interval).
 Include the tables: `include_eventstore_tables(metadata)`.
 
+**Optimistic-concurrency conflict metrics:** `qx_eventstore_version_conflicts_total{aggregate_type}` Prometheus counter is incremented on every version conflict in `EventStore.append()`.
+
 ---
 
 ## qx-saga — Process Managers (Orchestration Sagas)
@@ -614,6 +665,33 @@ class OrderFulfillmentSaga(Saga[OrderState]):
 State persisted in `qx_saga_instances`. Wire `SagaManager` as an
 integration-event handler in the worker.
 Include the table: `include_saga_table(metadata)`.
+
+### Distributed lock (timeout deduplication)
+
+```python
+from qx.cache import DistributedLock
+
+manager = SagaManager(
+    ...,
+    lock_factory=lambda key: DistributedLock(redis, key, ttl=30),
+)
+```
+
+`lock_factory` is duck-typed — any object with an async context manager interface works.
+Prevents duplicate timeout firings when multiple workers race on the same saga instance.
+
+### Compensate retry
+
+```python
+class MySaga(Saga[MyState]):
+    compensate_max_attempts = 3        # default: 3
+    compensate_base_delay_seconds = 0.1  # default: 0.1 (exponential backoff)
+
+    async def compensate(self) -> None:
+        ...
+```
+
+`SagaManager` retries `compensate()` up to `compensate_max_attempts` times with exponential backoff before marking the saga as failed.
 
 ---
 
@@ -659,9 +737,28 @@ server.add_insecure_port("[::]:50051")
 await server.start()
 ```
 
-Interceptors: `RequestContextInterceptor` (sets `RequestContext` per call),
-`ExceptionInterceptor` (maps `ErrorException` → gRPC status codes),
-`MetricsInterceptor` (Prometheus counters/histograms per RPC method).
+Interceptors:
+
+| Interceptor | Effect |
+|---|---|
+| `RequestContextInterceptor` | Populates `RequestContext` per call |
+| `ExceptionInterceptor` | Maps `ErrorException` → gRPC status codes; re-raises `CancelledError` |
+| `MetricsInterceptor` | Prometheus counters + latency histograms per RPC method |
+| `JwtAuthInterceptor` | Reads `Authorization: Bearer` from gRPC metadata; stores `Principal` in `RequestContext` |
+
+All interceptors handle all four handler shapes (unary_unary, unary_stream, stream_unary, stream_stream).
+
+**Per-method histogram buckets:**
+
+```python
+MetricsInterceptor(
+    per_method_buckets={
+        "/orders.OrderService/PlaceOrder": [0.01, 0.05, 0.1, 0.5, 1.0],
+    }
+)
+```
+
+Deadline is propagated: `context.time_remaining()` → `RequestContext.attributes["rpc.deadline_seconds"]`.
 
 ---
 
@@ -736,6 +833,42 @@ payments/
   pyproject.toml
 ```
 
+Scaffolded services pass `uv run pytest` and `uv run mypy` out of the box.
+
+### Code generators
+
+```bash
+qx generate aggregate    UserAggregate   # CRUD aggregate + repository stub
+qx generate command      CreateOrder     # command + handler stub
+qx generate query        GetOrder        # query + handler stub
+qx generate event        OrderPlaced     # integration event stub
+qx generate esaggregate  Order           # EventSourcedAggregate + domain events + apply_* stubs
+```
+
+### Projection management
+
+```bash
+qx projections status               # show checkpoint lag per projection
+qx projections rebuild order_summary  # reset checkpoint to 0, trigger full replay
+qx projections rebuild order_summary --yes  # skip confirmation
+```
+
+### Dead letter queue
+
+```bash
+qx dlq list                         # show recent dead letters (--limit, --event-name)
+qx dlq replay <uuid>                # re-publish to original NATS subject
+qx dlq replay <uuid> --subject <s>  # override subject
+qx dlq replay <uuid> --yes          # skip confirmation
+```
+
+### Doctor
+
+```bash
+qx doctor                    # version requirements + connectivity checks
+qx doctor --no-connectivity  # skip Postgres/Redis/NATS connectivity checks
+```
+
 ---
 
 ## qx-devtools — Shared Code-Quality Config
@@ -751,26 +884,26 @@ write_configs(Path("."))   # writes ruff.toml, mypy.ini, .pre-commit-config.yaml
 
 ## Capability Matrix
 
-| Package | Stable | Key export |
+| Package | Stable | Key exports / capabilities |
 |---|---|---|
-| qx-core | ✅ | `Result`, `Entity`, `DomainEvent`, errors, `RequestContext` |
-| qx-cqrs | ✅ | `Command`, `Query`, `Mediator`, `@command_handler`, `@query_handler` |
-| qx-db | ✅ | `Repository`, `UnitOfWork`, `run_async_migrations` |
-| qx-di | ✅ | `Container` |
-| qx-http | ✅ | `setup_qx_app`, `Inject`, `envelope_success`, `unwrap` |
-| qx-observability | ✅ | `setup_observability`, `Metrics`, `HealthRegistry` |
-| qx-flags | ✅ | `FlagClient`, `InMemoryProvider`, `InMemoryFlag` |
+| qx-core | ✅ | `Result`, `Entity`, `DomainEvent`, error hierarchy, `RequestContext`, `QxSettings` |
+| qx-cqrs | ✅ | `Command`, `Query`, `Mediator`, pipeline behaviors, `trace_behaviors=True` |
+| qx-db | ✅ | `Repository`, `UnitOfWork`, migrations, multi-tenancy (RLS/schema/DB), `advisory_lock` |
+| qx-di | ✅ | `Container` (SINGLETON / SCOPED / TRANSIENT, cycle detection) |
+| qx-http | ✅ | `setup_qx_app`, `Inject`, `envelope_success`, `unwrap`, W3C traceparent extraction |
+| qx-observability | ✅ | `setup_observability`, `Metrics`, `HealthRegistry`, OTel tracing |
+| qx-flags | ✅ | `FlagClient`, `InMemoryProvider`, `InMemoryFlag`, OpenFeature targeting |
 | qx-regions | ✅ | `RegionRouter`, `StaticRegionResolver`, `DbRegionResolver` |
-| qx-auth | ✅ | `JwtValidator`, `Principal`, `PolicyEvaluator`, `TokenBucket` |
+| qx-auth | ✅ | `JwtValidator`, `Principal`, `PolicyEvaluator`, `TokenBucket`, revocation, HTTP middleware |
 | qx-cache | ✅ | `Cache`, `DistributedLock`, `IdempotencyStore` |
-| qx-worker | ✅ | `WorkerRuntime` |
-| qx-events | ✅ | `EventRegistry`, `MediatorEventDispatcher` |
-| qx-search | ✅ | `SearchRepository`, `SearchQuery`, `OpenSearchRepository` |
-| qx-eventstore | ✅ | `EventSourcedAggregate`, `EventStore` |
-| qx-saga | ✅ | `Saga`, `SagaManager`, `@on`, `@on_timeout` |
-| qx-projections | ✅ | `Projection`, `ProjectionRunner` |
-| qx-grpc | ✅ | `create_grpc_server`, interceptors |
-| qx-testing | ✅ | `RepositoryStub`, `MediatorStub`, `FlagClientStub`, `OutboxAssert` |
-| qx-cli | ✅ | `qx new service <name>` |
-| qx-devtools | ✅ | `write_configs` |
-| qx-py | ✅ | Meta-package (installs all of the above) |
+| qx-worker | ✅ | `WorkerRuntime`, `DeadLetterStore`, DLQ, consumer lag metric |
+| qx-events | ✅ | `EventRegistry`, `MediatorEventDispatcher`, `OutboxRelay`, sharded relay |
+| qx-search | ✅ | `SearchRepository`, `SearchQuery`, `OpenSearchRepository`, `bulk_index`, `scroll` |
+| qx-eventstore | ✅ | `EventSourcedAggregate`, `EventStore`, snapshots, conflict metrics |
+| qx-saga | ✅ | `Saga`, `SagaManager`, `@on`, `@on_timeout`, `lock_factory`, compensate retry |
+| qx-projections | ✅ | `Projection`, `ProjectionRunner`, incremental checkpointing |
+| qx-grpc | ✅ | `create_grpc_server`, all 4 interceptors, per-method buckets, deadline propagation |
+| qx-testing | ✅ | `RepositoryStub`, `MediatorStub`, `FlagClientStub`, `OutboxAssert`, `InMemorySearchRepository` |
+| qx-cli | ✅ | `qx new service`, generators, `projections status/rebuild`, `dlq list/replay`, `doctor` |
+| qx-devtools | ✅ | `write_configs` — ruff, mypy, pre-commit, editorconfig |
+| qx-py | ✅ | Meta-package (installs all 20 packages above) |
