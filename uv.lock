@@ -1411,7 +1411,7 @@ wheels = [
 
 [[package]]
 name = "qx-auth"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-auth" }
 dependencies = [
     { name = "cryptography" },
@@ -1436,7 +1436,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-cache"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-cache" }
 dependencies = [
     { name = "qx-core" },
@@ -1453,7 +1453,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-cli"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-cli" }
 dependencies = [
     { name = "jinja2" },
@@ -1476,7 +1476,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-core"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-core" }
 dependencies = [
     { name = "pydantic" },
@@ -1493,7 +1493,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-cqrs"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-cqrs" }
 dependencies = [
     { name = "pydantic" },
@@ -1510,7 +1510,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-db"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-db" }
 dependencies = [
     { name = "alembic" },
@@ -1537,12 +1537,12 @@ requires-dist = [
 
 [[package]]
 name = "qx-devtools"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-devtools" }
 
 [[package]]
 name = "qx-di"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-di" }
 dependencies = [
     { name = "qx-core" },
@@ -1557,7 +1557,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-events"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-events" }
 dependencies = [
     { name = "nats-py" },
@@ -1582,7 +1582,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-eventstore"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-eventstore" }
 dependencies = [
     { name = "qx-core" },
@@ -1597,7 +1597,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-flags"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-flags" }
 dependencies = [
     { name = "openfeature-sdk" },
@@ -1612,7 +1612,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-grpc"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-grpc" }
 dependencies = [
     { name = "grpcio" },
@@ -1637,7 +1637,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-http"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-http" }
 dependencies = [
     { name = "fastapi" },
@@ -1662,7 +1662,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-observability"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-observability" }
 dependencies = [
     { name = "opentelemetry-api" },
@@ -1691,7 +1691,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-projections"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-projections" }
 dependencies = [
     { name = "qx-core" },
@@ -1708,7 +1708,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-py"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-py" }
 dependencies = [
     { name = "qx-auth" },
@@ -1842,7 +1842,7 @@ dev = [
 
 [[package]]
 name = "qx-regions"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-regions" }
 dependencies = [
     { name = "pydantic-settings" },
@@ -1863,7 +1863,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-saga"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-saga" }
 dependencies = [
     { name = "qx-core" },
@@ -1880,7 +1880,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-search"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-search" }
 dependencies = [
     { name = "opensearch-py", extra = ["async"] },
@@ -1899,7 +1899,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-testing"
-version = "1.0.1"
+version = "1.1.0"
 source = { editable = "packages/qx-testing" }
 dependencies = [
     { name = "httpx" },
@@ -1934,7 +1934,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-worker"
-version = "1.0.0"
+version = "1.1.0"
 source = { editable = "packages/qx-worker" }
 dependencies = [
     { name = "nats-py" },

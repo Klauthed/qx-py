@@ -1,6 +1,6 @@
 [project]
 name = "qx-flags"
-version = "1.0.0"
+version = "1.1.0"
 description = "Qx feature flags: thin OpenFeature wrapper for flag-gated pipeline behaviors"
 readme = "README.md"
 requires-python = ">=3.14"

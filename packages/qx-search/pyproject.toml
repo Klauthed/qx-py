@@ -1,6 +1,6 @@
 [project]
 name = "qx-search"
-version = "1.0.0"
+version = "1.1.0"
 description = "Qx search: OpenSearch/Elasticsearch async client, repository abstraction, index lifecycle helpers (V2 stub)"
 readme = "README.md"
 requires-python = ">=3.14"

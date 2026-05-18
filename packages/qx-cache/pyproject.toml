@@ -1,6 +1,6 @@
 [project]
 name = "qx-cache"
-version = "1.0.0"
+version = "1.1.0"
 description = "Qx cache layer: Redis client, idempotency store, distributed locks"
 readme = "README.md"
 requires-python = ">=3.14"
