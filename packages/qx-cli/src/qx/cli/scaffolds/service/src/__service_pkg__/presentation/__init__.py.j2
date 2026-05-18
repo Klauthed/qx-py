@@ -9,13 +9,12 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from {{ service_pkg }}.presentation.health import router as health_router
+
 
 def register_routes(app: FastAPI) -> None:
-    """Mount every router this service exposes.
-
-    Generated endpoints register themselves here. Wire your routers as the
-    CLI generates them.
-    """
-    # Example: from {{ service_pkg }}.presentation.routes.users import router as users_router
-    #          app.include_router(users_router, prefix="/v1")
-    pass
+    """Mount every router this service exposes."""
+    app.include_router(health_router)
+    # Generated routers:
+    # from {{ service_pkg }}.presentation.routes.users import router as users_router
+    # app.include_router(users_router, prefix="/v1")

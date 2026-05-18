@@ -31,6 +31,7 @@ from qx.events import EventRegistry, MediatorEventDispatcher
 from qx.http import setup_qx_app
 from qx.observability import setup_observability
 
+from {{ service_pkg }}.presentation.health import router as health_router
 from {{ service_pkg }}.presentation.{{ domain_snake }} import router as {{ domain_snake }}_router
 
 
@@ -85,6 +86,7 @@ def build_app() -> FastAPI:
     )
 
     # ---- Routes — one include_router per slice ----
+    app.include_router(health_router)
     app.include_router({{ domain_snake }}_router, prefix="/v1")
     return app
 

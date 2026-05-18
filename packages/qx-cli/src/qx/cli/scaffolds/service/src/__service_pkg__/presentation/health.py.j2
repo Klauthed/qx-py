@@ -1,0 +1,19 @@
+"""Service info and health endpoint."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+from {{ service_pkg }} import __version__
+
+router = APIRouter(tags=["meta"])
+
+
+@router.get("/health")
+async def health() -> dict[str, str]:
+    """Return service identity and version."""
+    return {
+        "status": "ok",
+        "service": "{{ service_kebab }}",
+        "version": __version__,
+    }

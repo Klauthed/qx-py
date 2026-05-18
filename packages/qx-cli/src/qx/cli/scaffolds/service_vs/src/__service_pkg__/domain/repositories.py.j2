@@ -1,0 +1,26 @@
+"""Repository interfaces — domain contracts.
+
+Define WHAT the infrastructure layer must implement.
+Handlers depend only on these protocols; SQLAlchemy stays in infrastructure.
+
+Swap the database engine without touching a single command or query handler.
+"""
+
+from __future__ import annotations
+
+from typing import Protocol
+from uuid import UUID
+
+from qx.core import Result
+
+
+class I{{ domain_pascal }}Repository(Protocol):
+    """Read/write port for {{ domain_pascal }} aggregates.
+
+    Implement this in infrastructure/{{ domain_snake }}.py and inject it
+    via the DI container.
+    """
+
+    async def get(self, id: UUID) -> Result: ...
+    async def save(self, entity: object) -> Result[None]: ...
+    async def delete(self, id: UUID) -> Result[None]: ...
