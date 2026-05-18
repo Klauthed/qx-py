@@ -88,12 +88,17 @@ uv add qx-core qx-cqrs qx-db qx-http        # or pick only what you need
 ### Scaffold your first service
 
 **1. Install the CLI**
+
+`qx-cli` is the package that provides the `qx` executable.
+
 ```bash
-pip install qx-py   # includes qx-cli
+# As a global tool (recommended — keeps qx isolated from your projects)
+uv tool install qx-cli
 # or
-poetry add qx-py
-# or
-uv tool install qx-py
+pipx install qx-cli
+
+# Or via pip into the active environment
+pip install qx-cli
 ```
 
 **2. Create a new service**
