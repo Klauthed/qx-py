@@ -101,15 +101,12 @@ jobs:
           TAG: ${{ needs.build.outputs.tag }}
         run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "$TAG" dist/*.whl dist/*.tar.gz \
-              --repo "$GITHUB_REPOSITORY" \
-              --clobber
-          else
-            gh release create "$TAG" dist/*.whl dist/*.tar.gz \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$TAG" \
-              --generate-notes
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
           fi
+          gh release create "$TAG" dist/*.whl dist/*.tar.gz \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --generate-notes
           gh release edit "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease=false \
