@@ -1,0 +1,19 @@
+"""{{ slice_name_pascal }}Repository — SQLAlchemy-backed persistence."""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+from qx.db import Repository
+
+from {{ service_pkg }}.domain.{{ slice_name_snake }}.entity import {{ slice_name_pascal }}
+from {{ service_pkg }}.infrastructure.persistence.{{ slice_name_snake }}.mapping import (
+    {{ slice_name_snake }}_table,
+)
+
+
+class {{ slice_name_pascal }}Repository(Repository[{{ slice_name_pascal }}]):
+    entity_cls = {{ slice_name_pascal }}
+    table = {{ slice_name_snake }}_table
+    filterable_fields: ClassVar[set[str]] = {"name"}
+    sortable_fields: ClassVar[set[str]] = {"created_at", "name"}

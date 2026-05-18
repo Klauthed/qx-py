@@ -1,0 +1,34 @@
+"""Create{{ slice_name_pascal }} command + handler."""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from qx.core import Result
+from qx.cqrs import Command, command_handler
+from qx.db import UnitOfWork
+
+from {{ service_pkg }}.domain.{{ slice_name_snake }}.entity import {{ slice_name_pascal }}
+from {{ service_pkg }}.infrastructure.persistence.{{ slice_name_snake }}.repository import (
+    {{ slice_name_pascal }}Repository,
+)
+
+
+class Create{{ slice_name_pascal }}Command(Command[UUID]):
+    """Create a new {{ slice_name_pascal }}. Returns the new entity's UUID."""
+
+    name: str
+
+
+@command_handler(Create{{ slice_name_pascal }}Command)
+class Create{{ slice_name_pascal }}Handler:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def handle(self, command: Create{{ slice_name_pascal }}Command) -> Result[UUID]:
+        entity = {{ slice_name_pascal }}.create(name=command.name)
+        async with self._uow:
+            repo = {{ slice_name_pascal }}Repository(self._uow.session)
+            await repo.add(entity)
+            await self._uow.commit()
+        return Result.success(entity.id)

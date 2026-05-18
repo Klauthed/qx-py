@@ -1,20 +1,114 @@
-"""{{ slice_name_pascal }} HTTP routes."""
+"""{{ slice_name_pascal }} HTTP routes — full CRUD."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from datetime import datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Query
+from pydantic import BaseModel
 from qx.cqrs import Mediator
-from qx.http import Inject
+from qx.http import Inject, envelope_success, unwrap
+
+from {{ service_pkg }}.application.{{ slice_name_snake }}.commands.create_{{ slice_name_snake }} import (
+    Create{{ slice_name_pascal }}Command,
+)
+from {{ service_pkg }}.application.{{ slice_name_snake }}.commands.delete_{{ slice_name_snake }} import (
+    Delete{{ slice_name_pascal }}Command,
+)
+from {{ service_pkg }}.application.{{ slice_name_snake }}.commands.update_{{ slice_name_snake }} import (
+    Update{{ slice_name_pascal }}Command,
+)
+from {{ service_pkg }}.application.{{ slice_name_snake }}.queries.get_{{ slice_name_snake }} import (
+    Get{{ slice_name_pascal }}Query,
+)
+from {{ service_pkg }}.application.{{ slice_name_snake }}.queries.list_{{ slice_name_snake }}s import (
+    List{{ slice_name_pascal }}sQuery,
+)
 
 router = APIRouter(prefix="/{{ slice_name_kebab }}s", tags=["{{ slice_name_pascal }}"])
 
-# Example:
-# from {{ service_pkg }}.application.{{ slice_name_snake }}.commands.create_{{ slice_name_snake }} import (
-#     Create{{ slice_name_pascal }}Command,
-# )
-#
-# @router.post("/", status_code=201)
-# async def create_{{ slice_name_snake }}(
-#     mediator: Mediator = Inject(Mediator),
-# ) -> None:
-#     await mediator.send(Create{{ slice_name_pascal }}Command(...))
+
+class Create{{ slice_name_pascal }}Body(BaseModel):
+    name: str
+
+
+class Update{{ slice_name_pascal }}Body(BaseModel):
+    name: str
+
+
+class {{ slice_name_pascal }}Response(BaseModel):
+    id: UUID
+    name: str
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+@router.post("/", status_code=201)
+async def create_{{ slice_name_snake }}(
+    body: Create{{ slice_name_pascal }}Body,
+    mediator: Mediator = Inject(Mediator),  # noqa: B008
+) -> dict:
+    entity_id = unwrap(await mediator.send(Create{{ slice_name_pascal }}Command(name=body.name)))
+    return envelope_success({"id": str(entity_id)})
+
+
+@router.get("/{id}")
+async def get_{{ slice_name_snake }}(
+    id: UUID,
+    mediator: Mediator = Inject(Mediator),  # noqa: B008
+) -> dict:
+    entity = unwrap(await mediator.send(Get{{ slice_name_pascal }}Query(id=id)))
+    return envelope_success(
+        {{ slice_name_pascal }}Response(
+            id=entity.id,
+            name=entity.name,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+        )
+    )
+
+
+@router.get("/")
+async def list_{{ slice_name_snake }}s(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=200),
+    mediator: Mediator = Inject(Mediator),  # noqa: B008
+) -> dict:
+    from qx.core import OffsetPagination  # noqa: PLC0415
+
+    result = unwrap(
+        await mediator.send(
+            List{{ slice_name_pascal }}sQuery(
+                pagination=OffsetPagination(page=page, page_size=page_size)
+            )
+        )
+    )
+    items = [
+        {{ slice_name_pascal }}Response(
+            id=e.id,
+            name=e.name,
+            created_at=e.created_at,
+            updated_at=e.updated_at,
+        )
+        for e in result.items
+    ]
+    return envelope_success(items, total=result.total, page=result.page, page_size=result.page_size)
+
+
+@router.patch("/{id}")
+async def update_{{ slice_name_snake }}(
+    id: UUID,
+    body: Update{{ slice_name_pascal }}Body,
+    mediator: Mediator = Inject(Mediator),  # noqa: B008
+) -> dict:
+    unwrap(await mediator.send(Update{{ slice_name_pascal }}Command(id=id, name=body.name)))
+    return envelope_success(None)
+
+
+@router.delete("/{id}", status_code=204)
+async def delete_{{ slice_name_snake }}(
+    id: UUID,
+    mediator: Mediator = Inject(Mediator),  # noqa: B008
+) -> None:
+    unwrap(await mediator.send(Delete{{ slice_name_pascal }}Command(id=id)))

@@ -1,1 +1,23 @@
-"""{{ slice_name_pascal }} commands."""
+"""{{ slice_name_pascal }} commands — Create, Update, Delete."""
+
+from {{ service_pkg }}.application.{{ slice_name_snake }}.commands.create_{{ slice_name_snake }} import (
+    Create{{ slice_name_pascal }}Command,
+    Create{{ slice_name_pascal }}Handler,
+)
+from {{ service_pkg }}.application.{{ slice_name_snake }}.commands.delete_{{ slice_name_snake }} import (
+    Delete{{ slice_name_pascal }}Command,
+    Delete{{ slice_name_pascal }}Handler,
+)
+from {{ service_pkg }}.application.{{ slice_name_snake }}.commands.update_{{ slice_name_snake }} import (
+    Update{{ slice_name_pascal }}Command,
+    Update{{ slice_name_pascal }}Handler,
+)
+
+__all__ = [
+    "Create{{ slice_name_pascal }}Command",
+    "Create{{ slice_name_pascal }}Handler",
+    "Delete{{ slice_name_pascal }}Command",
+    "Delete{{ slice_name_pascal }}Handler",
+    "Update{{ slice_name_pascal }}Command",
+    "Update{{ slice_name_pascal }}Handler",
+]

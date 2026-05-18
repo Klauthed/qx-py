@@ -1,0 +1,27 @@
+"""{{ slice_name_pascal }} domain entity."""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from qx.core import AggregateRoot, aggregate, uuid7
+
+
+@aggregate
+class {{ slice_name_pascal }}(AggregateRoot[UUID]):
+    """{{ slice_name_pascal }} aggregate root.
+
+    Add domain fields and invariant-enforcement methods here.
+    Keep this class free of any infrastructure concerns (no SQLAlchemy, no HTTP).
+    """
+
+    name: str = ""
+
+    @classmethod
+    def create(cls, *, name: str) -> "{{ slice_name_pascal }}":
+        """Factory — the only way to construct a valid {{ slice_name_pascal }}."""
+        return cls(id=uuid7(), name=name)
+
+    def update(self, *, name: str) -> None:
+        """Apply a partial update. Add field-level validation here."""
+        self.name = name

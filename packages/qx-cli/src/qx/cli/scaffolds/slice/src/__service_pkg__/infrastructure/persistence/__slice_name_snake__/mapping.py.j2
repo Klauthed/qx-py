@@ -1,0 +1,22 @@
+"""SQLAlchemy table mapping for {{ slice_name_pascal }}."""
+
+from __future__ import annotations
+
+from sqlalchemy import Column, String, Table
+
+from qx.db import make_registry, standard_audit_columns, uuid_column
+
+from {{ service_pkg }}.domain.{{ slice_name_snake }}.entity import {{ slice_name_pascal }}
+from {{ service_pkg }}.shared import metadata
+
+registry = make_registry(metadata=metadata)
+
+{{ slice_name_snake }}_table = Table(
+    "{{ slice_name_snake }}",
+    metadata,
+    uuid_column("id", primary_key=True),
+    Column("name", String(255), nullable=False),
+    *standard_audit_columns(),
+)
+
+registry.map_imperatively({{ slice_name_pascal }}, {{ slice_name_snake }}_table)

@@ -1,0 +1,32 @@
+"""List{{ slice_name_pascal }}s query + handler."""
+
+from __future__ import annotations
+
+from qx.core import OffsetPage, OffsetPagination, Result
+from qx.cqrs import Query, query_handler
+from qx.db import UnitOfWork
+
+from {{ service_pkg }}.domain.{{ slice_name_snake }}.entity import {{ slice_name_pascal }}
+from {{ service_pkg }}.infrastructure.persistence.{{ slice_name_snake }}.repository import (
+    {{ slice_name_pascal }}Repository,
+)
+
+
+class List{{ slice_name_pascal }}sQuery(Query[OffsetPage[{{ slice_name_pascal }}]]):
+    """Paginated list of {{ slice_name_pascal }}s."""
+
+    pagination: OffsetPagination = OffsetPagination()
+
+
+@query_handler(List{{ slice_name_pascal }}sQuery)
+class List{{ slice_name_pascal }}sHandler:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def handle(
+        self, query: List{{ slice_name_pascal }}sQuery
+    ) -> Result[OffsetPage[{{ slice_name_pascal }}]]:
+        async with self._uow:
+            repo = {{ slice_name_pascal }}Repository(self._uow.session)
+            page = await repo.list(query.pagination)
+        return Result.success(page)

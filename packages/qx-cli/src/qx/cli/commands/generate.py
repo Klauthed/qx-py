@@ -201,24 +201,42 @@ def generate_slice(
     name: str = typer.Argument(..., help="Slice name (e.g. 'payment', 'user')."),
     force: bool = typer.Option(False, "--force", "-f"),
 ) -> None:
-    """Generate a new vertical slice (application/<slice>/commands/, queries/, presentation/<slice>.py).
+    """Generate a full CRUD vertical slice.
 
-    After generating, mount the new router in main.py:
+    Creates entity, commands (Create/Update/Delete), queries (Get/List),
+    SQLAlchemy mapping + repository, and a FastAPI router with all five endpoints.
 
-        from <service>.presentation.payment import router as payment_router
-        app.include_router(payment_router, prefix="/v1")
+    After generating:
+
+      1. Mount the router in main.py:
+             from <service>.presentation.<slice> import router as <slice>_router
+             app.include_router(<slice>_router, prefix="/v1")
+
+      2. Create the Alembic migration:
+             uv run alembic revision --autogenerate -m "create_<slice>"
+             uv run alembic upgrade head
     """
     root, pkg = _service_package()
     context = _slice_names(name)
     context["service_pkg"] = pkg
+    sn = context["slice_name_snake"]
+    # Combined names used in generated file names (avoids triple-underscore clash).
+    context["create_slice_name_snake"] = f"create_{sn}"
+    context["update_slice_name_snake"] = f"update_{sn}"
+    context["delete_slice_name_snake"] = f"delete_{sn}"
+    context["get_slice_name_snake"] = f"get_{sn}"
+    context["list_slice_name_snakes"] = f"list_{sn}s"
     files = render_tree("qx.cli.scaffolds", "slice", root, context, overwrite=force)
     console.rule(f"[bold green]slice {context['slice_name_pascal']} generated[/bold green]")
     preview_tree(files, root)
     console.print(
-        "\n[bold]Wire the router in main.py:[/bold]\n"
-        f"  from {pkg}.presentation.{context['slice_name_snake']} import router as "
-        f"{context['slice_name_snake']}_router\n"
-        f'  app.include_router({context["slice_name_snake"]}_router, prefix="/v1")\n'
+        f"\n[bold]Next steps:[/bold]\n"
+        f"  1. Mount the router in [cyan]main.py[/cyan]:\n"
+        f"       from {pkg}.presentation.{sn} import router as {sn}_router\n"
+        f"       app.include_router({sn}_router, prefix=\"/v1\")\n\n"
+        f"  2. Run the Alembic migration:\n"
+        f"       uv run alembic revision --autogenerate -m \"create_{sn}\"\n"
+        f"       uv run alembic upgrade head\n"
     )
 
 

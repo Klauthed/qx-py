@@ -1,0 +1,31 @@
+"""Get{{ slice_name_pascal }} query + handler."""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from qx.core import Result
+from qx.cqrs import Query, query_handler
+from qx.db import UnitOfWork
+
+from {{ service_pkg }}.domain.{{ slice_name_snake }}.entity import {{ slice_name_pascal }}
+from {{ service_pkg }}.infrastructure.persistence.{{ slice_name_snake }}.repository import (
+    {{ slice_name_pascal }}Repository,
+)
+
+
+class Get{{ slice_name_pascal }}Query(Query[{{ slice_name_pascal }}]):
+    """Fetch a single {{ slice_name_pascal }} by ID."""
+
+    id: UUID
+
+
+@query_handler(Get{{ slice_name_pascal }}Query)
+class Get{{ slice_name_pascal }}Handler:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def handle(self, query: Get{{ slice_name_pascal }}Query) -> Result[{{ slice_name_pascal }}]:
+        async with self._uow:
+            repo = {{ slice_name_pascal }}Repository(self._uow.session)
+            return await repo.get(query.id)

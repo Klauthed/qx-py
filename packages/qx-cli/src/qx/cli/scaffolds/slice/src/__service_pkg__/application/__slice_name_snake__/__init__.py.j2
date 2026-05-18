@@ -1,1 +1,29 @@
 """{{ slice_name_pascal }} application slice — commands and queries."""
+
+from {{ service_pkg }}.application.{{ slice_name_snake }}.commands import (
+    Create{{ slice_name_pascal }}Command,
+    Create{{ slice_name_pascal }}Handler,
+    Delete{{ slice_name_pascal }}Command,
+    Delete{{ slice_name_pascal }}Handler,
+    Update{{ slice_name_pascal }}Command,
+    Update{{ slice_name_pascal }}Handler,
+)
+from {{ service_pkg }}.application.{{ slice_name_snake }}.queries import (
+    Get{{ slice_name_pascal }}Handler,
+    Get{{ slice_name_pascal }}Query,
+    List{{ slice_name_pascal }}sHandler,
+    List{{ slice_name_pascal }}sQuery,
+)
+
+__all__ = [
+    "Create{{ slice_name_pascal }}Command",
+    "Create{{ slice_name_pascal }}Handler",
+    "Delete{{ slice_name_pascal }}Command",
+    "Delete{{ slice_name_pascal }}Handler",
+    "Get{{ slice_name_pascal }}Handler",
+    "Get{{ slice_name_pascal }}Query",
+    "List{{ slice_name_pascal }}sHandler",
+    "List{{ slice_name_pascal }}sQuery",
+    "Update{{ slice_name_pascal }}Command",
+    "Update{{ slice_name_pascal }}Handler",
+]

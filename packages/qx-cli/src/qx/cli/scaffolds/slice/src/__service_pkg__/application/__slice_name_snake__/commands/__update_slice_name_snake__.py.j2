@@ -1,0 +1,40 @@
+"""Update{{ slice_name_pascal }} command + handler."""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from qx.core import Result
+from qx.cqrs import Command, command_handler
+from qx.db import UnitOfWork
+
+from {{ service_pkg }}.infrastructure.persistence.{{ slice_name_snake }}.repository import (
+    {{ slice_name_pascal }}Repository,
+)
+
+
+class Update{{ slice_name_pascal }}Command(Command[None]):
+    """Update an existing {{ slice_name_pascal }}."""
+
+    id: UUID
+    name: str
+
+
+@command_handler(Update{{ slice_name_pascal }}Command)
+class Update{{ slice_name_pascal }}Handler:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def handle(self, command: Update{{ slice_name_pascal }}Command) -> Result[None]:
+        async with self._uow:
+            repo = {{ slice_name_pascal }}Repository(self._uow.session)
+            result = await repo.get(command.id)
+            if result.is_failure:
+                return result
+            entity = result.value
+            entity.update(name=command.name)
+            save_result = await repo.save(entity)
+            if save_result.is_failure:
+                return save_result
+            await self._uow.commit()
+        return Result.success(None)
