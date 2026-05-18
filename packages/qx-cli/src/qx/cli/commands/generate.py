@@ -233,9 +233,9 @@ def generate_slice(
         f"\n[bold]Next steps:[/bold]\n"
         f"  1. Mount the router in [cyan]main.py[/cyan]:\n"
         f"       from {pkg}.presentation.{sn} import router as {sn}_router\n"
-        f"       app.include_router({sn}_router, prefix=\"/v1\")\n\n"
+        f'       app.include_router({sn}_router, prefix="/v1")\n\n'
         f"  2. Run the Alembic migration:\n"
-        f"       uv run alembic revision --autogenerate -m \"create_{sn}\"\n"
+        f'       uv run alembic revision --autogenerate -m "create_{sn}"\n'
         f"       uv run alembic upgrade head\n"
     )
 
