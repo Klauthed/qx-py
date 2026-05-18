@@ -3,22 +3,21 @@
 Define WHAT the infrastructure layer must implement.
 Handlers depend only on these protocols; SQLAlchemy stays in infrastructure.
 
-Swap the database engine without touching a single command or query handler.
+Example — add one Protocol per aggregate:
 
-Example:
+    from typing import Protocol
+    from uuid import UUID
+    from qx.core import Result
 
     class IOrderRepository(Protocol):
         async def get(self, id: UUID) -> Result: ...
-        async def save(self, entity: Order) -> Result[None]: ...
+        async def save(self, entity: object) -> Result[None]: ...
+        async def delete(self, id: UUID) -> Result[None]: ...
 
-    # In infrastructure/persistence/order/repository.py:
+Then in infrastructure/persistence/order/repository.py, implement it:
+
     class OrderRepository(Repository[Order]):
-        ...  # implements IOrderRepository implicitly (structural subtyping)
+        ...  # structurally satisfies IOrderRepository
 """
 
 from __future__ import annotations
-
-from typing import Protocol
-from uuid import UUID
-
-from qx.core import Result
