@@ -1899,7 +1899,7 @@ requires-dist = [
 
 [[package]]
 name = "qx-testing"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "packages/qx-testing" }
 dependencies = [
     { name = "httpx" },
@@ -1929,7 +1929,7 @@ requires-dist = [
     { name = "qx-events", editable = "packages/qx-events" },
     { name = "qx-http", editable = "packages/qx-http" },
     { name = "qx-search", editable = "packages/qx-search" },
-    { name = "testcontainers", extras = ["postgresql", "redis"], specifier = ">=4.8.0" },
+    { name = "testcontainers", extras = ["postgres", "redis"], specifier = ">=4.8.0" },
 ]
 
 [[package]]
