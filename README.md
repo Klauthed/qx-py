@@ -61,7 +61,92 @@ HTTP request
 
 ## Quick start
 
-**Prerequisites:** Python 3.14+, [uv](https://docs.astral.sh/uv/), Docker (for integration tests and local stack).
+### Install
+
+**pip**
+```bash
+pip install qx-py          # installs all 20 packages in one shot
+pip install qx-core qx-cqrs qx-db qx-http   # or pick only what you need
+```
+
+**Poetry**
+```bash
+poetry add qx-py           # all packages
+poetry add qx-core qx-cqrs qx-db qx-http    # or pick only what you need
+```
+
+**uv** (recommended for new projects)
+```bash
+uv add qx-py               # all packages
+uv add qx-core qx-cqrs qx-db qx-http        # or pick only what you need
+```
+
+> **Requirements:** Python 3.14+. Docker is required for integration tests and the local dev stack.
+
+---
+
+### Scaffold your first service
+
+**1. Install the CLI**
+```bash
+pip install qx-py   # includes qx-cli
+# or
+poetry add qx-py
+# or
+uv tool install qx-py
+```
+
+**2. Create a new service**
+```bash
+# Layered layout (single aggregate focus)
+qx new service my-svc
+
+# Vertical-slice layout (multiple feature domains)
+qx new service my-svc --slices --domain user
+```
+
+**3. Add commands, queries, and slices**
+```bash
+cd my-svc
+
+# Layered
+qx generate command CreateUser
+qx generate query   GetUser
+qx generate aggregate Invoice
+
+# Vertical slices
+qx generate command user/CreateUser
+qx generate query   user/GetUser
+qx generate slice   payment
+```
+
+**4. Run your service**
+```bash
+# With uv (if using uv for the project)
+uv run uvicorn my_svc.main:app --reload
+
+# With Poetry
+poetry run uvicorn my_svc.main:app --reload
+
+# With pip / virtualenv
+uvicorn my_svc.main:app --reload
+```
+
+**5. Run tests**
+```bash
+# uv
+uv run pytest -q
+
+# Poetry
+poetry run pytest -q
+
+# pip
+pytest -q
+```
+
+---
+
+### Contributing / developing Qx itself
 
 ```bash
 git clone https://github.com/klauthed/qx-py.git
@@ -73,9 +158,6 @@ uv run pytest packages/ examples/ -q
 
 # Check CLI
 uv run qx version
-
-# Scaffold a new service
-uv run qx new service my-svc
 ```
 
 ---
